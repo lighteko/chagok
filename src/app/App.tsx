@@ -1,10 +1,10 @@
-import { DashboardPage } from "@/domains/dashboard/components/DashboardPage";
-import { TanStackQueryProvider } from "@/app/_providers/TanStackQueryProvider";
+import { WorkspacePage } from "@/domains/dashboard/components/WorkspacePage";
+import { TooltipProvider } from "@/atomics/atoms/tooltip";
 
 export function App() {
   return (
-    <TanStackQueryProvider>
-      <DashboardPage />
-    </TanStackQueryProvider>
+    <TooltipProvider>
+      <WorkspacePage />
+    </TooltipProvider>
   );
 }

@@ -6,6 +6,7 @@
     "src/main/**/*.ts",
     "src/preload/**/*.ts",
     "src/shared/desktop/**/*.ts",
-    "src/shared/utils/month.ts"
+    "src/shared/utils/month.ts",
+    "src/domains/transactions/import/**/*.ts"
   ]
 }

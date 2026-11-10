@@ -1,6 +1,19 @@
-import { getAppInfo } from "@/domains/dashboard/api/getAppInfo";
-import { QUERY_KEYS, useApiQuery } from "@/shared/query";
+import { useEffect, useState } from "react";
+import type { AppInfo } from "@/shared/desktop/contracts";
 
 export function useAppInfo() {
-  return useApiQuery({ queryKey: QUERY_KEYS.app.info(), queryFn: getAppInfo, staleTime: Infinity, retry: false });
+  const [info, setInfo] = useState<AppInfo | null>(null);
+  useEffect(() => {
+    let active = true;
+    void window.chagok
+      .getAppInfo()
+      .then(value => {
+        if (active) setInfo(value);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+  return info;
 }

@@ -1,16 +1,18 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { migrateTransactions, TransactionRepository } from "./transactions";
 import {
   defaultWorkspacePreferences,
   isWorkspacePreferences,
   type WorkspacePreferences,
 } from "@/shared/desktop/preferences";
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 export class AppDatabase {
   private readonly database: DatabaseSync;
+  readonly transactions: TransactionRepository;
 
   constructor(directory: string) {
     mkdirSync(directory, { recursive: true });
@@ -24,6 +26,8 @@ export class AppDatabase {
         throw new Error("이 앱 버전에서 지원하지 않는 데이터 형식입니다.");
       }
       if (version === 0) this.migrate();
+      if (version < 2) migrateTransactions(this.database);
+      this.transactions = new TransactionRepository(this.database);
     } catch (error) {
       this.database.close();
       throw error;

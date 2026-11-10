@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { IPC_CHANNELS, type AppInfo } from "@/shared/desktop/contracts";
 import { AppDatabase } from "./storage/database";
+import { TransactionImportService } from "./imports/transactionImport";
 
 const rendererFile = join(__dirname, "../renderer/index.html");
 let mainWindow: BrowserWindow | null = null;
@@ -78,6 +79,7 @@ if (!app.requestSingleInstanceLock()) {
     .then(() => {
       app.setAppUserModelId("com.lighteko.chagok");
       database = new AppDatabase(join(app.getPath("userData"), "storage"));
+      const imports = new TransactionImportService(database.transactions);
       session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
       session.defaultSession.setPermissionCheckHandler(() => false);
       session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
@@ -106,6 +108,35 @@ if (!app.requestSingleInstanceLock()) {
         assertTrustedCaller(event);
         if (!database) throw new Error("저장소가 준비되지 않았습니다.");
         return database.saveWorkspacePreferences(preferences);
+      });
+      ipcMain.handle(IPC_CHANNELS.transactionsPreview, async event => {
+        assertTrustedCaller(event);
+        const selected = await dialog.showOpenDialog(mainWindow!, {
+          title: "거래내역 가져오기",
+          properties: ["openFile"],
+          filters: [{ name: "엑셀 거래내역", extensions: ["xlsx"] }],
+        });
+        if (selected.canceled || !selected.filePaths[0]) return null;
+        assertTrustedCaller(event);
+        return imports.preview(selected.filePaths[0]);
+      });
+      ipcMain.handle(IPC_CHANNELS.transactionsCommit, (event, request: unknown) => {
+        assertTrustedCaller(event);
+        return imports.commit(request);
+      });
+      ipcMain.handle(IPC_CHANNELS.transactionsCancel, (event, token: unknown) => {
+        assertTrustedCaller(event);
+        imports.cancel(token);
+      });
+      ipcMain.handle(IPC_CHANNELS.transactionsList, (event, query: unknown) => {
+        assertTrustedCaller(event);
+        if (!database) throw new Error("저장소가 준비되지 않았습니다.");
+        return database.transactions.list(query);
+      });
+      ipcMain.handle(IPC_CHANNELS.transactionDetail, (event, id: unknown) => {
+        assertTrustedCaller(event);
+        if (!database) throw new Error("저장소가 준비되지 않았습니다.");
+        return database.transactions.detail(id);
       });
       createWindow();
       app.on("activate", () => {

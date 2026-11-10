@@ -23,7 +23,7 @@ try {
   await expect(window.getByRole("heading", { name: "거래내역", exact: true })).toBeVisible();
   await expect(window.getByRole("heading", { name: "앱 연결 상태" })).toHaveCount(0);
   await expect(window.getByText("차곡차곡 모아서,", { exact: false })).toHaveCount(0);
-  await expect(window.getByText("v0.1.0", { exact: true })).toBeVisible();
+  await expect(window.getByText("차곡 v0.1.0", { exact: true })).toBeVisible();
   const info = await window.evaluate(() => window.chagok.getAppInfo());
   assert.equal(info.name, "차곡");
   assert.equal(info.version, "0.1.0");
@@ -48,7 +48,7 @@ try {
   const storedPreferences = () => ({
     ...inspection.prepare("SELECT view, month FROM workspace_preferences WHERE id = 1").get(),
   });
-  assert.equal(inspection.prepare("PRAGMA user_version").get().user_version, 1);
+  assert.equal(inspection.prepare("PRAGMA user_version").get().user_version, 2);
   assert.equal(inspection.prepare("PRAGMA journal_mode").get().journal_mode, "wal");
 
   // Simulate an existing user upgrading from the localStorage version.
@@ -105,12 +105,12 @@ try {
   await expect(window.getByRole("heading", { name: "별도 지출", exact: true }).first()).toBeVisible();
   await expect(month).toHaveValue("2026-09");
   await navigation.getByRole("button", { name: "월별 정산" }).click();
-  await expect(window.getByRole("heading", { name: "정산할 내역이 없습니다" })).toBeVisible();
+  await expect(window.getByRole("heading", { name: "월별 정산", exact: true })).toBeVisible();
   await expect(navigation.getByRole("button", { name: "월별 정산" })).toHaveAttribute("aria-current", "page");
   await window.screenshot({ path: "test-results/chagok-settlement.png", fullPage: true, animations: "disabled" });
   await navigation.getByRole("button", { name: "거래내역" }).click();
   await expect(window.getByRole("table")).toBeVisible();
-  await expect(window.getByRole("button", { name: "파일 가져오기", exact: true })).toBeDisabled();
+  await expect(window.getByRole("button", { name: "파일 가져오기", exact: true })).toBeEnabled();
   await expect(navigation.getByRole("button", { name: "거래내역" })).toHaveAttribute("aria-current", "page");
   await window.screenshot({ path: "test-results/chagok-workspace.png", fullPage: true, animations: "disabled" });
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(900, 640));
