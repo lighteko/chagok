@@ -1,5 +1,17 @@
 import type { WorkspacePreferences } from "@/shared/desktop/preferences";
 import type {
+  LedgerWorkspace,
+  Classification,
+  Expense,
+  PaymentLink,
+  ClassificationRule,
+  Category,
+  BulkClassification,
+  SettlementSettings,
+  PeriodSnapshot,
+  ReceiptInfo,
+} from "@/shared/desktop/ledger";
+import type {
   CommitTransactionImport,
   TransactionImportPreview,
   TransactionImportResult,
@@ -19,6 +31,27 @@ export const IPC_CHANNELS = {
   transactionsList: "transactions:list",
   transactionDetail: "transactions:detail",
   transactionsExport: "transactions:export",
+  ledgerGet: "ledger:get",
+  ledgerAudit: "ledger:audit",
+  ledgerClassify: "ledger:classify",
+  ledgerBulkClassify: "ledger:bulk-classify",
+  ledgerExpenseSave: "ledger:expense-save",
+  ledgerExpenseDelete: "ledger:expense-delete",
+  ledgerLink: "ledger:link",
+  ledgerCategory: "ledger:category",
+  ledgerRuleSave: "ledger:rule-save",
+  ledgerRuleDelete: "ledger:rule-delete",
+  ledgerRuleSuggest: "ledger:rule-suggest",
+  ledgerSettings: "ledger:settings",
+  ledgerClose: "ledger:close",
+  ledgerReopen: "ledger:reopen",
+  receiptsList: "receipts:list",
+  receiptsAdd: "receipts:add",
+  receiptsOpen: "receipts:open",
+  receiptsDelete: "receipts:delete",
+  backupCreate: "backup:create",
+  backupRestore: "backup:restore",
+  settlementExport: "settlement:export",
 } as const;
 
 export interface AppInfo {
@@ -37,4 +70,28 @@ export interface DesktopApi {
   listTransactions: (query: TransactionQuery) => Promise<TransactionList>;
   getTransaction: (id: string) => Promise<TransactionDetail>;
   exportTransactions: (month: string) => Promise<TransactionExportResult | null>;
+  getLedger: (month: string) => Promise<LedgerWorkspace>;
+  getLedgerAudit: (
+    month: string,
+    page: number,
+  ) => Promise<{ rows: import("@/shared/desktop/ledger").AuditEvent[]; total: number }>;
+  classifyTransaction: (value: Classification) => Promise<Classification>;
+  bulkClassifyTransactions: (value: BulkClassification) => Promise<Classification[]>;
+  saveExpense: (value: Expense) => Promise<Expense>;
+  deleteExpense: (id: string) => Promise<void>;
+  savePaymentLink: (value: PaymentLink) => Promise<void>;
+  saveCategory: (value: Category) => Promise<void>;
+  saveClassificationRule: (value: ClassificationRule) => Promise<ClassificationRule>;
+  deleteClassificationRule: (id: string) => Promise<void>;
+  suggestClassificationRules: (month: string) => Promise<number>;
+  saveSettlementSettings: (month: string, value: SettlementSettings) => Promise<SettlementSettings>;
+  closePeriod: (month: string) => Promise<PeriodSnapshot>;
+  reopenPeriod: (month: string, reason: string) => Promise<void>;
+  listReceipts: (expenseId: string) => Promise<ReceiptInfo[]>;
+  addReceipt: (expenseId: string) => Promise<ReceiptInfo[] | null>;
+  openReceipt: (id: string) => Promise<void>;
+  deleteReceipt: (id: string) => Promise<void>;
+  createBackup: () => Promise<{ fileName: string; createdAt: string; receipts: number } | null>;
+  restoreBackup: () => Promise<{ createdAt: string; transactions: number; expenses: number; receipts: number } | null>;
+  exportSettlement: (month: string, snapshotId?: string) => Promise<TransactionExportResult | null>;
 }

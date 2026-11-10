@@ -39,7 +39,10 @@ export function migrateTransactions(db: DatabaseSync): void {
 }
 
 export class TransactionRepository {
-  constructor(private readonly db: DatabaseSync) {}
+  constructor(
+    private readonly db: DatabaseSync,
+    private readonly afterImport?: (months: string[]) => void,
+  ) {}
 
   exportMonth(month: unknown): TransactionExportSnapshot {
     if (!isValidMonth(month)) throw new Error("내보낼 월을 확인해 주세요.");
@@ -69,6 +72,10 @@ export class TransactionRepository {
     let inserted = 0;
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      for (const month of months) {
+        if (this.db.prepare("SELECT 1 FROM settlement_snapshots WHERE month=? AND reopened_at IS NULL").get(month))
+          throw new Error(`${month}은 마감되었습니다. 재개방한 뒤 거래를 가져와 주세요.`);
+      }
       this.db
         .prepare(`INSERT INTO transaction_imports VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)`)
         .run(
@@ -129,6 +136,7 @@ export class TransactionRepository {
       this.db
         .prepare("UPDATE transaction_imports SET inserted_count = ?, duplicate_count = ? WHERE id = ?")
         .run(inserted, rows.length - inserted, importId);
+      this.afterImport?.(months);
       this.db.exec("COMMIT");
       return { inserted, duplicates: rows.length - inserted, months };
     } catch (error) {

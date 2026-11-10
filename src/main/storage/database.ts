@@ -2,17 +2,19 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { migrateTransactions, TransactionRepository } from "./transactions";
+import { migrateLedger, LedgerRepository } from "./ledger";
 import {
   defaultWorkspacePreferences,
   isWorkspacePreferences,
   type WorkspacePreferences,
 } from "@/shared/desktop/preferences";
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 export class AppDatabase {
   private readonly database: DatabaseSync;
   readonly transactions: TransactionRepository;
+  readonly ledger: LedgerRepository;
 
   constructor(directory: string) {
     mkdirSync(directory, { recursive: true });
@@ -27,7 +29,11 @@ export class AppDatabase {
       }
       if (version === 0) this.migrate();
       if (version < 2) migrateTransactions(this.database);
-      this.transactions = new TransactionRepository(this.database);
+      if (version < 3) migrateLedger(this.database);
+      this.ledger = new LedgerRepository(this.database);
+      this.transactions = new TransactionRepository(this.database, months => {
+        for (const month of months) this.ledger.suggestRulesInTransaction(month);
+      });
     } catch (error) {
       this.database.close();
       throw error;
@@ -81,5 +87,9 @@ export class AppDatabase {
 
   close(): void {
     this.database.close();
+  }
+  /** SQLite 자체의 일관된 읽기 스냅샷으로 WAL 내용을 포함한 독립 DB를 만듭니다. */
+  writeBackup(path: string): void {
+    this.database.prepare("VACUUM INTO ?").run(path);
   }
 }

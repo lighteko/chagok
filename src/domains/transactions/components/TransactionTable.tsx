@@ -8,6 +8,7 @@ import { NativeSelect, NativeSelectOption } from "@/atomics/atoms/native-select"
 import { Table, TableHeader, TableHead, TableRow, TableBody, TableCell } from "@/atomics/atoms/table";
 import type { TransactionFilter, TransactionList, TransactionQuery } from "@/shared/desktop/transactions";
 import { formatMoney } from "@/shared/utils/money";
+import type { Classification } from "@/shared/desktop/ledger";
 
 interface Props {
   data: TransactionList;
@@ -19,6 +20,7 @@ interface Props {
   onDetail: (id: string) => void;
   importing: boolean;
   loading: boolean;
+  classifications?: Classification[];
 }
 
 export function TransactionTable({
@@ -31,6 +33,7 @@ export function TransactionTable({
   onDetail,
   importing,
   loading,
+  classifications = [],
 }: Props) {
   return (
     <Card className="min-h-96 flex-1">
@@ -56,7 +59,7 @@ export function TransactionTable({
             <NativeSelectOption value="all">전체 거래</NativeSelectOption>
             <NativeSelectOption value="deposit">입금</NativeSelectOption>
             <NativeSelectOption value="withdrawal">출금</NativeSelectOption>
-            <NativeSelectOption value="review">확인 필요</NativeSelectOption>
+            <NativeSelectOption value="review">원본 확인 표시</NativeSelectOption>
           </NativeSelect>
         </div>
       </CardHeader>
@@ -96,9 +99,24 @@ export function TransactionTable({
                 <TableCell className="text-right tabular-nums">{formatMoney(row.withdrawal)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatMoney(row.deposit)}</TableCell>
                 <TableCell>
-                  <Badge variant={row.issues.length ? "destructive" : "outline"}>
-                    {row.issues.length ? "확인 필요" : "미분류"}
+                  <Badge
+                    variant={
+                      classifications.find(c => c.transactionId === row.id)?.confirmed
+                        ? "outline"
+                        : row.issues.length
+                          ? "destructive"
+                          : "secondary"
+                    }
+                  >
+                    {classifications.find(c => c.transactionId === row.id)?.confirmed
+                      ? "확인 완료"
+                      : classifications.some(c => c.transactionId === row.id)
+                        ? "분류 검토"
+                        : row.issues.length
+                          ? "확인 필요"
+                          : "미분류"}
                   </Badge>
+                  {row.issues.length > 0 && <div className="mt-1 text-xs text-muted-foreground">원본 확인 표시</div>}
                 </TableCell>
               </TableRow>
             ))}

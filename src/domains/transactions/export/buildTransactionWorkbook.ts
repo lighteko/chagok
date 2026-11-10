@@ -31,8 +31,8 @@ export function buildTransactionWorkbook({ month, rows, summary }: TransactionEx
       "상대 예금주",
       "상대은행",
       "거래구분",
-      "상태",
-      "확인 사항",
+      "원본 상태",
+      "원본 확인 사항",
       "원본 파일",
       "원본 시트",
       "원본 행",
@@ -51,7 +51,7 @@ export function buildTransactionWorkbook({ month, rows, summary }: TransactionEx
       text(row.bank),
       text(row.kind),
       {
-        value: row.issues.length ? "확인 필요" : "미분류",
+        value: row.issues.length ? "원본 확인 표시" : "원본 정상",
         type: String,
         textColor: row.issues.length ? "#B91C1C" : "#262626",
       },
@@ -65,7 +65,11 @@ export function buildTransactionWorkbook({ month, rows, summary }: TransactionEx
     headers(["항목", "값", "설명"]),
     [text("정산월"), text(month), text("검색·필터·페이지와 관계없이 선택한 달의 전체 거래")],
     [text("전체 거래 수"), amount(summary.count), text("원본 거래 기준")],
-    [text("확인 필요 거래 수"), amount(summary.needsReview), text("금액 또는 거래 내용 등을 확인해야 하는 거래")],
+    [
+      text("원본 확인 표시 거래 수"),
+      amount(summary.needsReview),
+      text("원본 금액·내용의 확인 표시이며 정산 확정 상태와 구분"),
+    ],
     [text("금액 미확인 거래 수"), amount(summary.missingAmounts), text("빈 금액·잘못된 금액은 0원으로 바꾸지 않음")],
     [
       text("입금 합계(원)"),

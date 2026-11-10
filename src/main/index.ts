@@ -1,16 +1,28 @@
-import { app, BrowserWindow, dialog, ipcMain, session, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { IPC_CHANNELS, type AppInfo } from "@/shared/desktop/contracts";
 import { AppDatabase } from "./storage/database";
 import { TransactionImportService } from "./imports/transactionImport";
 import { saveTransactionExport } from "./exports/transactionExport";
+import { ReceiptService } from "./receipts/receiptService";
+import { id as validId } from "./storage/ledgerValidation";
+import {
+  writeBackup,
+  prepareRestore,
+  discardRestore,
+  installRestore,
+  recoverInterruptedRestore,
+} from "./backups/backupService";
+import { saveSettlementExport } from "./exports/settlementExport";
 
 const rendererFile = join(__dirname, "../renderer/index.html");
 let mainWindow: BrowserWindow | null = null;
 let database: AppDatabase | null = null;
+let restoring = false;
 
 function assertTrustedCaller(event: IpcMainInvokeEvent): void {
+  if (restoring) throw new Error("백업 복원 중입니다. 잠시 후 다시 시도해 주세요.");
   if (
     !mainWindow ||
     event.sender !== mainWindow.webContents ||
@@ -77,10 +89,11 @@ if (!app.requestSingleInstanceLock()) {
   });
   app
     .whenReady()
-    .then(() => {
+    .then(async () => {
       app.setAppUserModelId("com.lighteko.chagok");
+      await recoverInterruptedRestore(app.getPath("userData"));
       database = new AppDatabase(join(app.getPath("userData"), "storage"));
-      const imports = new TransactionImportService(database.transactions);
+      let imports = new TransactionImportService(database.transactions);
       session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
       session.defaultSession.setPermissionCheckHandler(() => false);
       session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
@@ -152,6 +165,143 @@ if (!app.requestSingleInstanceLock()) {
         if (selected.canceled || !selected.filePath) return null;
         assertTrustedCaller(event);
         return saveTransactionExport(snapshot, selected.filePath);
+      });
+      const ledgerHandlers: [string, (...args: unknown[]) => unknown][] = [
+        [IPC_CHANNELS.ledgerGet, month => database!.ledger.workspace(month)],
+        [IPC_CHANNELS.ledgerAudit, (month, page) => database!.ledger.auditPage(month, page)],
+        [IPC_CHANNELS.ledgerClassify, value => database!.ledger.classify(value)],
+        [IPC_CHANNELS.ledgerBulkClassify, value => database!.ledger.bulkClassify(value)],
+        [IPC_CHANNELS.ledgerExpenseSave, value => database!.ledger.saveExpense(value)],
+        [IPC_CHANNELS.ledgerExpenseDelete, value => database!.ledger.deleteExpense(value)],
+        [IPC_CHANNELS.ledgerLink, value => database!.ledger.saveLink(value)],
+        [IPC_CHANNELS.ledgerCategory, value => database!.ledger.saveCategory(value)],
+        [IPC_CHANNELS.ledgerRuleSave, value => database!.ledger.saveRule(value)],
+        [IPC_CHANNELS.ledgerRuleDelete, value => database!.ledger.deleteRule(value)],
+        [IPC_CHANNELS.ledgerRuleSuggest, value => database!.ledger.suggestRules(value)],
+        [IPC_CHANNELS.ledgerSettings, (month, value) => database!.ledger.saveSettings(month, value)],
+        [IPC_CHANNELS.ledgerClose, month => database!.ledger.closePeriod(month)],
+        [IPC_CHANNELS.ledgerReopen, (month, reason) => database!.ledger.reopenPeriod(month, reason)],
+      ];
+      for (const [channel, handler] of ledgerHandlers)
+        ipcMain.handle(channel, (event, ...args: unknown[]) => {
+          assertTrustedCaller(event);
+          if (!database) throw new Error("저장소가 준비되지 않았습니다.");
+          return handler(...args);
+        });
+      const receipts = () => new ReceiptService(join(app.getPath("userData"), "storage", "receipts"), database!.ledger);
+      ipcMain.handle(IPC_CHANNELS.receiptsList, (event, id: unknown) => {
+        assertTrustedCaller(event);
+        return database!.ledger.receipts(id);
+      });
+      ipcMain.handle(IPC_CHANNELS.receiptsAdd, async (event, input: unknown) => {
+        assertTrustedCaller(event);
+        const id = validId(input);
+        database!.ledger.assertExpenseOpen(id);
+        const selected = await dialog.showOpenDialog(mainWindow!, {
+          title: "영수증 첨부",
+          properties: ["openFile"],
+          filters: [{ name: "영수증 이미지·PDF", extensions: ["png", "jpg", "jpeg", "webp", "pdf"] }],
+        });
+        if (selected.canceled || !selected.filePaths[0]) return null;
+        assertTrustedCaller(event);
+        return receipts().add(id, selected.filePaths[0]);
+      });
+      ipcMain.handle(IPC_CHANNELS.receiptsOpen, async (event, input: unknown) => {
+        assertTrustedCaller(event);
+        const path = await receipts().path(validId(input));
+        assertTrustedCaller(event);
+        const error = await shell.openPath(path);
+        if (error) throw new Error("기본 앱으로 영수증을 열지 못했습니다.");
+      });
+      ipcMain.handle(IPC_CHANNELS.receiptsDelete, async (event, input: unknown) => {
+        assertTrustedCaller(event);
+        await receipts().remove(validId(input));
+      });
+      ipcMain.handle(IPC_CHANNELS.backupCreate, async event => {
+        assertTrustedCaller(event);
+        const selected = await dialog.showSaveDialog(mainWindow!, {
+          title: "차곡 전체 백업",
+          defaultPath: join(app.getPath("documents"), `차곡_백업_${new Date().toISOString().slice(0, 10)}.chagok`),
+          filters: [{ name: "차곡 전체 백업", extensions: ["chagok"] }],
+          properties: ["showOverwriteConfirmation"],
+        });
+        if (selected.canceled || !selected.filePath) return null;
+        assertTrustedCaller(event);
+        return writeBackup(database!, join(app.getPath("userData"), "storage"), selected.filePath);
+      });
+      ipcMain.handle(IPC_CHANNELS.settlementExport, async (event, month: unknown, inputId: unknown) => {
+        assertTrustedCaller(event);
+        const workspace = database!.ledger.workspace(month);
+        const snapshot =
+          inputId === undefined ? undefined : workspace.snapshots.find(row => row.id === validId(inputId));
+        if (inputId !== undefined && !snapshot) throw new Error("마감본을 찾을 수 없습니다.");
+        const report = snapshot?.report ?? workspace.report;
+        if (!report.entries.length) throw new Error("출력할 정산 자료가 없습니다.");
+        const selected = await dialog.showSaveDialog(mainWindow!, {
+          title: "기존 정산표 양식으로 내보내기",
+          defaultPath: join(
+            app.getPath("documents"),
+            `차곡_정산표_${report.month}${snapshot || workspace.closed ? "_마감" : "_잠정"}.xlsx`,
+          ),
+          filters: [{ name: "엑셀 정산표", extensions: ["xlsx"] }],
+          properties: ["showOverwriteConfirmation"],
+        });
+        if (selected.canceled || !selected.filePath) return null;
+        assertTrustedCaller(event);
+        return saveSettlementExport(report, Boolean(snapshot) || workspace.closed, selected.filePath);
+      });
+      ipcMain.handle(IPC_CHANNELS.backupRestore, async event => {
+        assertTrustedCaller(event);
+        const selected = await dialog.showOpenDialog(mainWindow!, {
+          title: "차곡 백업 복원",
+          filters: [{ name: "차곡 전체 백업", extensions: ["chagok"] }],
+          properties: ["openFile"],
+        });
+        if (selected.canceled || !selected.filePaths[0]) return null;
+        assertTrustedCaller(event);
+        const plan = await prepareRestore(selected.filePaths[0], app.getPath("userData"));
+        try {
+          assertTrustedCaller(event);
+          const confirmation = await dialog.showMessageBox(mainWindow!, {
+            type: "warning",
+            title: "백업 복원 확인",
+            message: "선택한 백업으로 현재 장부를 교체할까요?",
+            detail: `백업 시각: ${new Date(plan.createdAt).toLocaleString()}\n거래 ${plan.transactions}건 · 별도 지출 ${plan.expenses}건 · 영수증 ${plan.receipts}개\n현재 장부는 복원 전 보관본으로 PC에 남깁니다.`,
+            buttons: ["취소", "검증한 백업으로 복원"],
+            defaultId: 0,
+            cancelId: 0,
+            noLink: true,
+          });
+          if (confirmation.response !== 1) return null;
+          assertTrustedCaller(event);
+          restoring = true;
+          const storage = join(app.getPath("userData"), "storage");
+          try {
+            const result = await installRestore(plan, storage, () => {
+              database!.close();
+              database = null;
+            });
+            database = result.database;
+            imports = new TransactionImportService(database.transactions);
+          } catch (error) {
+            if (!database) {
+              database = new AppDatabase(storage);
+              imports = new TransactionImportService(database.transactions);
+            }
+            throw error;
+          } finally {
+            restoring = false;
+          }
+          mainWindow!.webContents.reload();
+          return {
+            createdAt: plan.createdAt,
+            transactions: plan.transactions,
+            expenses: plan.expenses,
+            receipts: plan.receipts,
+          };
+        } finally {
+          await discardRestore(plan);
+        }
       });
       createWindow();
       app.on("activate", () => {

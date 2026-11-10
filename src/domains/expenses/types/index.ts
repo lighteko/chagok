@@ -1,13 +1,1 @@
-export type ExpenseGroup = "cash" | "card" | "other";
-
-export interface ManualExpense {
-  id: string;
-  occurredOn: string;
-  settlementMonth: string;
-  amount: number;
-  description: string;
-  group: ExpenseGroup;
-  categoryId: string | null;
-  paidBy: string;
-  linkedTransactionId: string | null;
-}
+export type { ExpenseGroup, Expense as ManualExpense, PaymentLink } from "@/shared/desktop/ledger";

@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Download, FileSpreadsheet, Plus, Upload } from "lucide-react";
+import { Download, Plus, Upload } from "lucide-react";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/atomics/atoms/alert";
 import { Badge } from "@/atomics/atoms/badge";
 import { Button } from "@/atomics/atoms/button";
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia } from "@/atomics/atoms/empty";
+import { Empty, EmptyHeader, EmptyTitle } from "@/atomics/atoms/empty";
 import { SidebarTrigger } from "@/atomics/atoms/sidebar";
 import { Skeleton } from "@/atomics/atoms/skeleton";
 import { Separator } from "@/atomics/atoms/separator";
@@ -19,6 +19,12 @@ import { TransactionDetailDialog } from "@/domains/transactions/components/Trans
 import { useTransactions } from "@/domains/transactions/hooks/useTransactions";
 import type { TransactionImportPreview, TransactionImportResult } from "@/shared/desktop/transactions";
 import { currentMonth, monthRange } from "@/shared/utils/month";
+import { useLedger } from "@/domains/settlement/hooks/useLedger";
+import { SettlementPage } from "@/domains/settlement/components/SettlementPage";
+import { ExpenseEditor } from "@/domains/expenses/components/ExpenseEditor";
+import { ExpensesPage } from "@/domains/expenses/components/ExpensesPage";
+import type { Expense } from "@/shared/desktop/ledger";
+import { BackupDialog } from "./BackupDialog";
 
 export function WorkspacePage() {
   const info = useAppInfo();
@@ -30,6 +36,12 @@ export function WorkspacePage() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const transactions = useTransactions(workspace.preferences?.month ?? currentMonth(), revision);
+  const ledger = useLedger(workspace.preferences?.month ?? currentMonth(), revision);
+  const [expenseEditor, setExpenseEditor] = useState<{ expense?: Expense } | null>(null);
+  const [backupOpen, setBackupOpen] = useState(false);
+  function changed() {
+    setRevision(value => value + 1);
+  }
 
   async function chooseFile() {
     setImporting(true);
@@ -124,6 +136,20 @@ export function WorkspacePage() {
         />
       </header>
       <div className="flex flex-1 flex-col gap-5 p-6">
+        {ledger.error && ledger.data && (
+          <Alert variant="destructive">
+            <AlertDescription>정산 자료를 갱신하지 못했습니다. {ledger.error}</AlertDescription>
+            <AlertAction>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={ledger.reload}
+              >
+                다시 불러오기
+              </Button>
+            </AlertAction>
+          </Alert>
+        )}
         {workspace.saveError && (
           <Alert variant="destructive">
             <AlertDescription>화면 설정을 저장하지 못했습니다. 앱을 닫기 전에 다시 저장해 주세요.</AlertDescription>
@@ -153,9 +179,15 @@ export function WorkspacePage() {
             </AlertAction>
           </Alert>
         )}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">{monthRange(month)}</p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setBackupOpen(true)}
+            >
+              백업·복원
+            </Button>
             {view === "transactions" && (
               <Button
                 variant="outline"
@@ -169,8 +201,8 @@ export function WorkspacePage() {
             )}
             <Button
               variant="outline"
-              disabled
-              title="지출 입력 기능은 아직 지원하지 않습니다."
+              disabled={!ledger.data || ledger.data.closed}
+              onClick={() => setExpenseEditor({})}
             >
               <Plus />
               지출 추가
@@ -189,9 +221,10 @@ export function WorkspacePage() {
             <TransactionSummary summary={transactions.data?.summary} />
             {transactions.data?.summary.missingAmounts ? (
               <Alert>
-                <AlertTitle>금액 확인이 필요한 거래 {transactions.data.summary.missingAmounts}건</AlertTitle>
+                <AlertTitle>원본 금액 누락 {transactions.data.summary.missingAmounts}건</AlertTitle>
                 <AlertDescription>
-                  합계에는 확인된 금액만 포함됩니다. 누락 금액이 있어 입출금 차액은 표시하지 않습니다.
+                  이 요약은 엑셀 원본 기준입니다. 누락 금액이 있어 입출금 차액은 표시하지 않습니다. 보정·분류한 금액은
+                  월별 정산에서 확인합니다.
                 </AlertDescription>
               </Alert>
             ) : null}
@@ -219,6 +252,7 @@ export function WorkspacePage() {
                 onDetail={setDetailId}
                 importing={importing || exporting}
                 loading={transactions.loading}
+                classifications={ledger.data?.classifications}
               />
             ) : (
               <Skeleton
@@ -227,20 +261,46 @@ export function WorkspacePage() {
               />
             )}
           </>
+        ) : ledger.data ? (
+          view === "expenses" ? (
+            <ExpensesPage
+              month={month}
+              ledger={ledger.data}
+              onChanged={changed}
+            />
+          ) : (
+            <SettlementPage
+              key={month}
+              month={month}
+              ledger={ledger.data}
+              revision={revision}
+              onChanged={changed}
+              onMonth={workspace.setMonth}
+              onTransaction={setDetailId}
+              onExpense={id => {
+                const expense = ledger.data?.expenses.find(row => row.id === id);
+                if (expense) setExpenseEditor({ expense });
+              }}
+            />
+          )
+        ) : ledger.error ? (
+          <Alert variant="destructive">
+            <AlertDescription>{ledger.error}</AlertDescription>
+            <AlertAction>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={ledger.reload}
+              >
+                다시 불러오기
+              </Button>
+            </AlertAction>
+          </Alert>
         ) : (
-          <Empty className="min-h-96 border">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <FileSpreadsheet />
-              </EmptyMedia>
-              <EmptyTitle>{view === "expenses" ? "별도 지출" : "월별 정산"}</EmptyTitle>
-              <EmptyDescription>
-                {view === "expenses"
-                  ? "통장에 없는 지출을 기록하는 기능은 아직 지원하지 않습니다."
-                  : "정산 항목 분류와 배분 계산은 아직 지원하지 않습니다. 가져온 거래는 거래내역에서 확인할 수 있습니다."}
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <Skeleton
+            className="h-96"
+            aria-label="정산 자료 불러오는 중"
+          />
         )}
       </div>
       {preview && (
@@ -257,8 +317,26 @@ export function WorkspacePage() {
           key={detailId}
           id={detailId}
           onClose={() => setDetailId(null)}
+          ledger={ledger.data ?? undefined}
+          onSaved={() => {
+            setDetailId(null);
+            changed();
+          }}
         />
       )}
+      {expenseEditor && ledger.data && (
+        <ExpenseEditor
+          month={month}
+          expense={expenseEditor.expense}
+          categories={ledger.data.categories}
+          onClose={() => setExpenseEditor(null)}
+          onSaved={() => {
+            setExpenseEditor(null);
+            changed();
+          }}
+        />
+      )}
+      {backupOpen && <BackupDialog onClose={() => setBackupOpen(false)} />}
     </WorkspaceLayout>
   );
 }

@@ -6,8 +6,20 @@ import { Skeleton } from "@/atomics/atoms/skeleton";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/atomics/atoms/table";
 import type { TransactionDetail } from "@/shared/desktop/transactions";
 import { formatMoney } from "@/shared/utils/money";
+import type { LedgerWorkspace } from "@/shared/desktop/ledger";
+import { ClassificationEditor } from "./ClassificationEditor";
 
-export function TransactionDetailDialog({ id, onClose }: { id: string; onClose: () => void }) {
+export function TransactionDetailDialog({
+  id,
+  onClose,
+  ledger,
+  onSaved,
+}: {
+  id: string;
+  onClose: () => void;
+  ledger?: LedgerWorkspace;
+  onSaved?: () => void;
+}) {
   const [detail, setDetail] = useState<TransactionDetail | null>(null);
   const [error, setError] = useState(false),
     [retry, setRetry] = useState(0);
@@ -77,6 +89,14 @@ export function TransactionDetailDialog({ id, onClose }: { id: string; onClose: 
             <p className="break-all text-xs text-muted-foreground">
               {detail.fileName} / {detail.sheetName} / {detail.sourceRow}행
             </p>
+            {ledger && onSaved && (
+              <ClassificationEditor
+                key={detail.id}
+                detail={detail}
+                ledger={ledger}
+                onSaved={onSaved}
+              />
+            )}
             <Table>
               <TableHeader>
                 <TableRow>

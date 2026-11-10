@@ -8,6 +8,8 @@
     "src/shared/desktop/**/*.ts",
     "src/shared/utils/month.ts",
     "src/domains/transactions/import/**/*.ts",
-    "src/domains/transactions/export/**/*.ts"
+    "src/domains/transactions/export/**/*.ts",
+    "src/domains/settlement/calculation/**/*.ts",
+    "src/domains/settlement/export/**/*.ts"
   ]
 }

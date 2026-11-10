@@ -48,7 +48,7 @@ try {
   const storedPreferences = () => ({
     ...inspection.prepare("SELECT view, month FROM workspace_preferences WHERE id = 1").get(),
   });
-  assert.equal(inspection.prepare("PRAGMA user_version").get().user_version, 2);
+  assert.equal(inspection.prepare("PRAGMA user_version").get().user_version, 3);
   assert.equal(inspection.prepare("PRAGMA journal_mode").get().journal_mode, "wal");
 
   // Simulate an existing user upgrading from the localStorage version.

@@ -73,7 +73,7 @@ try {
   await expect(page.getByRole("heading", { name: "거래내역", exact: true })).toBeVisible();
   assert.equal(resolve(await app.evaluate(({ app }) => app.getPath("userData"))), profile);
   db = new DatabaseSync(databasePath);
-  assert.equal(db.prepare("PRAGMA user_version").get().user_version, 2);
+  assert.equal(db.prepare("PRAGMA user_version").get().user_version, 3);
   assert.equal(db.prepare("SELECT month FROM workspace_preferences").get().month, "2026-09");
   const count = table => Number(db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count);
   const choose = async path => {
