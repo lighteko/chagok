@@ -7,12 +7,17 @@
   --color-muted: #647269;
   --color-line: #dfe5df;
   --color-primary: #35694d;
+  --color-primary-soft: #e9f0e9;
+  --color-sidebar: #fcfcfa;
+  --color-hover: #eef1ec;
   --font-sans: "Pretendard", "Noto Sans KR", system-ui, sans-serif;
 }
 
 body {
   margin: 0;
   min-width: 360px;
+  font-feature-settings: "tnum";
+  -webkit-font-smoothing: antialiased;
 }
 button {
   cursor: pointer;
@@ -22,4 +27,35 @@ button:disabled {
 }
 ::selection {
   background: #d4e5d8;
+}
+
+.brand-mark {
+  display: flex;
+  width: 23px;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
+}
+.brand-mark span {
+  height: 5px;
+  border-radius: 1px;
+  background: var(--color-primary);
+}
+.brand-mark span:nth-child(1) {
+  width: 13px;
+}
+.brand-mark span:nth-child(2) {
+  width: 18px;
+}
+.brand-mark span:nth-child(3) {
+  width: 23px;
+}
+
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+input[type="month"] {
+  color-scheme: light;
 }
