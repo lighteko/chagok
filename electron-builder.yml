@@ -5,8 +5,10 @@ directories:
 files:
   - out/**
   - package.json
+  - src/shared/assets/fonts/OFL.txt
 asar: true
 win:
+  icon: build/icons/icon.ico
   executableName: chagok
   target:
     - target: nsis

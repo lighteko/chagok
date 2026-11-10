@@ -1,4 +1,5 @@
-import { ArrowLeftRight, BookOpen, Calculator, Receipt } from "lucide-react";
+import { ArrowLeftRight, Calculator, Receipt } from "lucide-react";
+import appIcon from "@/domains/dashboard/assets/chagok-icon.svg";
 import {
   Sidebar,
   SidebarHeader,
@@ -31,12 +32,18 @@ export function AppSidebar({
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-3">
-          <BookOpen
-            className="size-5 shrink-0"
-            aria-hidden="true"
+        <div className="flex items-center gap-3 px-2 py-4 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <img
+            src={appIcon}
+            alt=""
+            width={36}
+            height={36}
+            className="size-9 shrink-0 group-data-[collapsible=icon]:size-7"
           />
-          <span className="font-semibold group-data-[collapsible=icon]:hidden">차곡</span>
+          <div className="grid gap-0.5 group-data-[collapsible=icon]:hidden">
+            <span className="text-xl font-bold tracking-tight text-primary">차곡</span>
+            <span className="text-xs text-muted-foreground">월별 정산 장부</span>
+          </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -44,13 +51,14 @@ export function AppSidebar({
           <SidebarGroupLabel>장부 관리</SidebarGroupLabel>
           <SidebarGroupContent>
             <nav aria-label="작업 메뉴">
-              <SidebarMenu>
+              <SidebarMenu className="gap-1">
                 {items.map(({ view: id, label, icon: Icon }) => (
                   <SidebarMenuItem key={id}>
                     <SidebarMenuButton
                       isActive={view === id}
                       aria-current={view === id ? "page" : undefined}
                       tooltip={label}
+                      className="h-10"
                       onClick={() => onSelect(id)}
                     >
                       <Icon aria-hidden="true" />

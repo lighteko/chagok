@@ -118,14 +118,14 @@ export function WorkspacePage() {
         />
       }
     >
-      <header className="flex shrink-0 items-center justify-between gap-4 border-b px-6 py-4">
+      <header className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-4 border-b bg-background px-6 py-4">
         <div className="flex items-center gap-3">
           <SidebarTrigger />
           <Separator
             orientation="vertical"
             className="h-4"
           />
-          <h1 className="text-lg font-semibold">{title}</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
           {view === "transactions" && transactions.data && (
             <Badge variant="secondary">{transactions.data.summary.count.toLocaleString()}건</Badge>
           )}

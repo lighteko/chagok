@@ -14,7 +14,8 @@
   "scripts": {
     "dev": "electron-vite dev",
     "start": "electron-vite preview",
-    "build": "pnpm type-check && electron-vite build",
+    "build": "pnpm icons:generate && pnpm type-check && electron-vite build",
+    "icons:generate": "node scripts/generate-icons.mjs",
     "build:win": "pnpm build && electron-builder --win nsis",
     "build:dir": "pnpm build && electron-builder --dir",
     "lint": "eslint . --max-warnings=0",
@@ -41,6 +42,7 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.65.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/vite": "4.3.5",
     "@types/node": "^22.19.0",
     "@types/react": "19.3.0",

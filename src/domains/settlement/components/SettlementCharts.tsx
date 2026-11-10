@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis } from "recharts";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/atomics/atoms/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@/atomics/atoms/chart";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/atomics/atoms/card";
 import { Button } from "@/atomics/atoms/button";
 import type { SettlementReport } from "@/shared/desktop/ledger";
@@ -11,9 +17,9 @@ export interface EntryFilter {
   direction?: "income" | "expense";
 }
 const config = {
-  income: { label: "수입", color: "var(--primary)" },
-  expense: { label: "지출", color: "var(--muted-foreground)" },
-  amount: { label: "지출", color: "var(--primary)" },
+  income: { label: "수입", color: "var(--chart-1)" },
+  expense: { label: "지출", color: "var(--chart-2)" },
+  amount: { label: "지출", color: "var(--chart-1)" },
 };
 
 export function SettlementCharts({
@@ -106,6 +112,7 @@ export function SettlementCharts({
                   tickFormatter={value => `${Number(value) / 10000}만`}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartLegend content={<ChartLegendContent />} />
                 <Bar
                   dataKey="income"
                   fill="var(--color-income)"
@@ -206,6 +213,7 @@ export function SettlementCharts({
                   tickFormatter={value => `${Number(value) / 10000}만`}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartLegend content={<ChartLegendContent />} />
                 <Bar
                   dataKey="income"
                   fill="var(--color-income)"

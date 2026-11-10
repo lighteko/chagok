@@ -15,6 +15,7 @@ import {
   recoverInterruptedRestore,
 } from "./backups/backupService";
 import { saveSettlementExport } from "./exports/settlementExport";
+import appIcon from "../../build/icons/icon.png?asset";
 
 const rendererFile = join(__dirname, "../renderer/index.html");
 let mainWindow: BrowserWindow | null = null;
@@ -53,6 +54,7 @@ function createWindow(): void {
     minHeight: 640,
     show: false,
     title: "차곡",
+    icon: appIcon,
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),

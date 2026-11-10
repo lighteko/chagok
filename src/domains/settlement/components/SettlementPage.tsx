@@ -173,10 +173,15 @@ export function SettlementPage({
           ["정산 잔액", report.net],
           ["현금 / 카드 / 기타", null],
         ].map(([label, amount]) => (
-          <Card key={label}>
+          <Card
+            key={label}
+            className={label === "정산 잔액" ? "bg-primary/5" : undefined}
+          >
             <CardHeader>
               <CardDescription>{label}</CardDescription>
-              <CardTitle>
+              <CardTitle
+                className={`text-2xl tabular-nums tracking-tight ${label === "정산 잔액" ? "text-primary" : ""}`}
+              >
                 {amount === null ? (
                   <span className="text-sm">
                     {formatMoney(report.expenses.cash)} / {formatMoney(report.expenses.card)} /{" "}
@@ -206,7 +211,9 @@ export function SettlementPage({
               <p className="text-sm text-muted-foreground">
                 {row.recipient} · {row.basisPoints / 100}%
               </p>
-              <p className="text-xl font-semibold">{formatMoney(row.amount)}원</p>
+              <p className="text-2xl font-semibold tabular-nums tracking-tight text-primary">
+                {formatMoney(row.amount)}원
+              </p>
             </div>
           ))}
         </CardContent>
