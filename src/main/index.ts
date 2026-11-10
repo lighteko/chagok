@@ -1,10 +1,23 @@
-import { app, BrowserWindow, ipcMain, session } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, session, type IpcMainInvokeEvent } from "electron";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { IPC_CHANNELS, type AppInfo } from "@/shared/desktop/contracts";
+import { AppDatabase } from "./storage/database";
 
 const rendererFile = join(__dirname, "../renderer/index.html");
 let mainWindow: BrowserWindow | null = null;
+let database: AppDatabase | null = null;
+
+function assertTrustedCaller(event: IpcMainInvokeEvent): void {
+  if (
+    !mainWindow ||
+    event.sender !== mainWindow.webContents ||
+    event.senderFrame !== mainWindow.webContents.mainFrame ||
+    !isTrustedUrl(event.senderFrame.url)
+  ) {
+    throw new Error("허용되지 않은 앱 요청입니다.");
+  }
+}
 
 function isTrustedUrl(url: string): boolean {
   try {
@@ -64,6 +77,7 @@ if (!app.requestSingleInstanceLock()) {
     .whenReady()
     .then(() => {
       app.setAppUserModelId("com.lighteko.chagok");
+      database = new AppDatabase(join(app.getPath("userData"), "storage"));
       session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
       session.defaultSession.setPermissionCheckHandler(() => false);
       session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
@@ -80,15 +94,18 @@ if (!app.requestSingleInstanceLock()) {
         });
       });
       ipcMain.handle(IPC_CHANNELS.appInfo, (event): AppInfo => {
-        if (
-          !mainWindow ||
-          event.sender !== mainWindow.webContents ||
-          event.senderFrame !== mainWindow.webContents.mainFrame ||
-          !isTrustedUrl(event.senderFrame.url)
-        ) {
-          throw new Error("허용되지 않은 앱 요청입니다.");
-        }
+        assertTrustedCaller(event);
         return { name: "차곡", version: app.getVersion(), platform: process.platform };
+      });
+      ipcMain.handle(IPC_CHANNELS.preferencesGet, (event, legacy: unknown) => {
+        assertTrustedCaller(event);
+        if (!database) throw new Error("저장소가 준비되지 않았습니다.");
+        return database.loadWorkspacePreferences(legacy);
+      });
+      ipcMain.handle(IPC_CHANNELS.preferencesSave, (event, preferences: unknown) => {
+        assertTrustedCaller(event);
+        if (!database) throw new Error("저장소가 준비되지 않았습니다.");
+        return database.saveWorkspacePreferences(preferences);
       });
       createWindow();
       app.on("activate", () => {
@@ -97,8 +114,16 @@ if (!app.requestSingleInstanceLock()) {
     })
     .catch(error => {
       console.error("차곡을 시작할 수 없습니다.", error);
+      dialog.showErrorBox(
+        "차곡을 시작할 수 없습니다",
+        "저장된 데이터를 열지 못했습니다. 기존 데이터 파일은 보존됩니다. 앱을 다시 실행해 주세요.",
+      );
       app.exit(1);
     });
+  app.on("will-quit", () => {
+    database?.close();
+    database = null;
+  });
   app.on("window-all-closed", () => {
     if (process.platform !== "darwin") app.quit();
   });

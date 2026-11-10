@@ -52,7 +52,28 @@ const descriptions = {
 
 export function DashboardPage() {
   const { data } = useAppInfo();
-  const { view, month, setView, setMonth } = useWorkspaceState();
+  const { preferences, loadError, saveError, isSaving, reload, retrySave, setView, setMonth } = useWorkspaceState();
+  if (!preferences) {
+    return (
+      <main className="flex h-screen items-center justify-center bg-background text-foreground">
+        <div
+          className="text-center"
+          role={loadError ? "alert" : "status"}
+        >
+          <p className="text-sm">{loadError ? "작업 설정을 불러오지 못했습니다." : "작업 화면을 불러오는 중입니다."}</p>
+          {loadError && (
+            <Button
+              className="mt-4"
+              onClick={() => void reload()}
+            >
+              다시 불러오기
+            </Button>
+          )}
+        </div>
+      </main>
+    );
+  }
+  const { view, month } = preferences;
   const title = navigation.find(item => item.id === view)?.label ?? "거래내역";
   return (
     <MainLayout
@@ -63,7 +84,7 @@ export function DashboardPage() {
       }}
       footer={
         <div className="flex items-center justify-between">
-          <span>CHAGOK</span>
+          <span aria-live="polite">{isSaving ? "설정 저장 중" : "CHAGOK"}</span>
           <span>{data ? `v${data.version}` : ""}</span>
         </div>
       }
@@ -78,6 +99,20 @@ export function DashboardPage() {
           onChange={setMonth}
         />
       </header>
+      {saveError && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 border-b border-line bg-surface px-7 py-3"
+        >
+          <p className="text-[12px]">화면 설정을 저장하지 못했습니다. 앱을 닫기 전에 다시 저장해 주세요.</p>
+          <Button
+            variant="secondary"
+            onClick={retrySave}
+          >
+            다시 저장
+          </Button>
+        </div>
+      )}
       <div className="flex min-h-0 flex-1 flex-col gap-5 p-6 lg:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>

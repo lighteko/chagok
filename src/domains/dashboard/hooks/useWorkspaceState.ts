@@ -1,46 +1,95 @@
-import { useEffect, useState } from "react";
-import { currentMonth, isValidMonth } from "@/shared/utils/month";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getWorkspacePreferences, saveWorkspacePreferences } from "@/domains/dashboard/api/workspacePreferences";
+import {
+  isWorkspacePreferences,
+  isWorkspaceView,
+  type WorkspacePreferences,
+  type WorkspaceView,
+} from "@/shared/desktop/preferences";
+import { isValidMonth } from "@/shared/utils/month";
 
-export type WorkspaceView = "transactions" | "expenses" | "settlement";
-interface WorkspacePreferences {
-  view: WorkspaceView;
-  month: string;
-}
-const STORAGE_KEY = "chagok.workspace.v1";
+export { isWorkspaceView } from "@/shared/desktop/preferences";
 
-export function isWorkspaceView(value: unknown): value is WorkspaceView {
-  return value === "transactions" || value === "expenses" || value === "settlement";
-}
+// 이전 버전의 화면 설정을 이관할 때만 읽으며 새 값은 쓰지 않습니다.
+const LEGACY_KEY = "chagok.workspace.v1";
 
-function readPreferences(): WorkspacePreferences {
-  const fallback: WorkspacePreferences = { view: "transactions", month: currentMonth() };
+function readLegacyPreferences(): WorkspacePreferences | undefined {
   try {
-    const saved: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
-    if (!saved || typeof saved !== "object") return fallback;
-    const candidate = saved as Partial<WorkspacePreferences>;
-    return {
-      view: isWorkspaceView(candidate.view) ? candidate.view : fallback.view,
-      month: isValidMonth(candidate.month) ? candidate.month : fallback.month,
-    };
+    const value: unknown = JSON.parse(localStorage.getItem(LEGACY_KEY) ?? "null");
+    return isWorkspacePreferences(value) ? value : undefined;
   } catch {
-    return fallback;
+    return undefined;
   }
 }
 
 export function useWorkspaceState() {
-  const [preferences, setPreferences] = useState(readPreferences);
-  useEffect(() => {
+  const [preferences, setPreferences] = useState<WorkspacePreferences | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const latest = useRef<WorkspacePreferences | null>(null);
+  const loadVersion = useRef(0);
+  const saveVersion = useRef(0);
+
+  const reload = useCallback(async () => {
+    const version = ++loadVersion.current;
+    setLoadError(false);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+      const saved = await getWorkspacePreferences(readLegacyPreferences());
+      if (version !== loadVersion.current) return;
+      latest.current = saved;
+      setPreferences(saved);
+      try {
+        localStorage.removeItem(LEGACY_KEY);
+      } catch {
+        /* DB에 이관된 값이 우선하므로 다음 실행에 다시 정리합니다. */
+      }
     } catch {
-      console.warn("작업 화면 설정을 저장하지 못했습니다.");
+      if (version === loadVersion.current) setLoadError(true);
     }
-  }, [preferences]);
+  }, []);
+
+  useEffect(() => {
+    void reload();
+    return () => {
+      loadVersion.current += 1;
+    };
+  }, [reload]);
+
+  const save = useCallback((next: WorkspacePreferences) => {
+    const version = ++saveVersion.current;
+    latest.current = next;
+    setPreferences(next);
+    setSaveError(false);
+    setIsSaving(true);
+    void saveWorkspacePreferences(next)
+      .then(saved => {
+        if (version !== saveVersion.current) return;
+        latest.current = saved;
+        setPreferences(saved);
+        setIsSaving(false);
+      })
+      .catch(() => {
+        if (version !== saveVersion.current) return;
+        setSaveError(true);
+        setIsSaving(false);
+      });
+  }, []);
+
   return {
-    ...preferences,
-    setView: (view: WorkspaceView) => setPreferences(previous => ({ ...previous, view })),
+    preferences,
+    loadError,
+    saveError,
+    isSaving,
+    reload,
+    retrySave: () => {
+      if (latest.current) save(latest.current);
+    },
+    setView: (view: WorkspaceView) => {
+      if (latest.current && isWorkspaceView(view)) save({ ...latest.current, view });
+    },
     setMonth: (month: string) => {
-      if (isValidMonth(month)) setPreferences(previous => ({ ...previous, month }));
+      if (latest.current && isValidMonth(month)) save({ ...latest.current, month });
     },
   };
 }
