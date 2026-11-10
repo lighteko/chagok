@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Calculator, Receipt } from "lucide-react";
+import { ArrowLeftRight, Calculator, Receipt, BookOpen } from "lucide-react";
 import appIcon from "@/domains/dashboard/assets/chagok-icon.svg";
 import {
   Sidebar,
@@ -24,10 +24,14 @@ export function AppSidebar({
   view,
   onSelect,
   version,
+  tutorialOpen,
+  onTutorial,
 }: {
   view: WorkspaceView;
   onSelect: (view: WorkspaceView) => void;
   version?: string;
+  tutorialOpen: boolean;
+  onTutorial: () => void;
 }) {
   return (
     <Sidebar collapsible="icon">
@@ -72,6 +76,21 @@ export function AppSidebar({
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              tooltip="사용 안내"
+              aria-label="사용 안내"
+              onClick={onTutorial}
+              aria-expanded={tutorialOpen}
+              aria-controls={tutorialOpen ? "chagok-tutorial" : undefined}
+              data-tutorial-launch
+            >
+              <BookOpen aria-hidden="true" />
+              <span>사용 안내</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
         <div className="px-2 py-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
           {version ? `차곡 v${version}` : "차곡"}
         </div>

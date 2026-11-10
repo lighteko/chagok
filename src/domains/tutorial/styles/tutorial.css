@@ -1,0 +1,12 @@
+[data-tutorial-step="month"] [data-tutorial-target="month"],
+[data-tutorial-step="import"] [data-tutorial-target="import"],
+[data-tutorial-step="classify"] [data-tutorial-target="classify"],
+[data-tutorial-step="expenses"] [data-tutorial-target="expenses"],
+[data-tutorial-step="links"] [data-tutorial-target="links"],
+[data-tutorial-step="settlement"] [data-tutorial-target="settlement"],
+[data-tutorial-step="closing"] [data-tutorial-target="closing"],
+[data-tutorial-step="backup"] [data-tutorial-target="backup"] {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+  border-radius: var(--radius);
+}

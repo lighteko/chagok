@@ -26,6 +26,7 @@
     "test:smoke": "pnpm build && node scripts/smoke.mjs",
     "test:imports": "pnpm build && node scripts/transactions-smoke.mjs",
     "test:ledger": "pnpm build && node scripts/ledger-smoke.mjs",
+    "test:tutorial": "pnpm build && node scripts/tutorial-smoke.mjs",
     "prepare": "husky"
   },
   "dependencies": {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/atomics/atoms/button";
 import { Input } from "@/atomics/atoms/input";
 import { Label } from "@/atomics/atoms/label";
@@ -12,15 +12,20 @@ import { ExpenseEditor } from "./ExpenseEditor";
 import { errorText } from "@/domains/settlement/hooks/useLedger";
 import { formatMoney } from "@/shared/utils/money";
 import { ReceiptDialog } from "./ReceiptDialog";
+import type { ExpenseNavigation } from "../types";
 
 export function ExpensesPage({
   month,
   ledger,
   onChanged,
+  navigation,
+  onNavigationHandled,
 }: {
   month: string;
   ledger: LedgerWorkspace;
   onChanged: () => void;
+  navigation?: ExpenseNavigation | null;
+  onNavigationHandled?: () => void;
 }) {
   const [editing, setEditing] = useState<Expense | null>(null),
     [linking, setLinking] = useState<Expense | null>(null);
@@ -29,6 +34,16 @@ export function ExpensesPage({
   const [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
+  useEffect(() => {
+    if (!navigation) return;
+    const expense = ledger.expenses.find(row => row.id === navigation.expenseId && row.settlementMonth === month);
+    if (expense) {
+      setSearch("");
+      if (navigation.action === "link") setLinking(expense);
+      else setReceiptExpense(expense);
+    }
+    onNavigationHandled?.();
+  }, [navigation, ledger.expenses, month, onNavigationHandled]);
   async function remove() {
     if (!deleting) return;
     setBusy(true);
@@ -114,6 +129,7 @@ export function ExpensesPage({
                           variant="outline"
                           disabled={ledger.closed}
                           onClick={() => setLinking(expense)}
+                          data-tutorial-target={expense.id === expenses[0]?.id ? "links" : undefined}
                         >
                           연결
                         </Button>

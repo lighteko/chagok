@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/atomics/atoms/button";
 import { Input } from "@/atomics/atoms/input";
 import { Label } from "@/atomics/atoms/label";
@@ -23,6 +23,7 @@ import { BulkClassificationForm, ClassificationTools } from "./ClassificationToo
 import { SettlementCharts, type EntryFilter } from "./SettlementCharts";
 import { errorText } from "../hooks/useLedger";
 import { AuditHistory } from "./AuditHistory";
+import type { SettlementNavigation } from "../types";
 
 export function SettlementPage({
   month,
@@ -32,6 +33,8 @@ export function SettlementPage({
   onMonth,
   onTransaction,
   onExpense,
+  navigation,
+  onNavigationHandled,
 }: {
   month: string;
   ledger: LedgerWorkspace;
@@ -40,6 +43,8 @@ export function SettlementPage({
   onMonth: (month: string) => void;
   onTransaction: (id: string) => void;
   onExpense: (id: string) => void;
+  navigation?: SettlementNavigation | null;
+  onNavigationHandled?: () => void;
 }) {
   const [tab, setTab] = useState("overview"),
     [filter, setFilter] = useState<EntryFilter>({}),
@@ -56,6 +61,17 @@ export function SettlementPage({
   const [notice, setNotice] = useState("");
   const listRef = useRef<HTMLDivElement>(null),
     report = ledger.report;
+  useEffect(() => {
+    if (!navigation) return;
+    setTab(navigation.tab);
+    setPendingOnly(navigation.pendingOnly ?? false);
+    setFilter({});
+    setSearch("");
+    setSelected([]);
+    setPage(0);
+    if (navigation.openSettings) setSettingsOpen(true);
+    onNavigationHandled?.();
+  }, [navigation, onNavigationHandled]);
   const rows = report.entries.filter(
     row =>
       (!filter.day || row.occurredOn === filter.day) &&
@@ -106,7 +122,10 @@ export function SettlementPage({
           <Badge variant={ledger.closed ? "default" : "secondary"}>{ledger.closed ? "마감됨" : "잠정 정산"}</Badge>
           <span className="text-sm text-muted-foreground">확인할 내역 {report.pending}건</span>
         </div>
-        <div className="flex gap-2">
+        <div
+          className="flex flex-wrap gap-2"
+          data-tutorial-target="closing"
+        >
           <Button
             variant="outline"
             disabled={busy || !report.entries.length}
@@ -117,6 +136,7 @@ export function SettlementPage({
           <Button
             variant="outline"
             onClick={() => setSettingsOpen(true)}
+            data-tutorial-target="settlement"
           >
             배분 설정
           </Button>
@@ -224,7 +244,12 @@ export function SettlementPage({
       >
         <TabsList>
           <TabsTrigger value="overview">대시보드</TabsTrigger>
-          <TabsTrigger value="entries">분류·확인</TabsTrigger>
+          <TabsTrigger
+            value="entries"
+            data-tutorial-target="classify"
+          >
+            분류·확인
+          </TabsTrigger>
           <TabsTrigger value="rules">항목·분류 규칙</TabsTrigger>
           <TabsTrigger value="history">마감·수정 이력</TabsTrigger>
         </TabsList>

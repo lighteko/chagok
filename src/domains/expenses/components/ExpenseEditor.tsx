@@ -27,7 +27,7 @@ export function ExpenseEditor({
   expense?: Expense;
   categories: Category[];
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (expense: Expense) => void;
 }) {
   const [form, setForm] = useState<Expense>(
     () =>
@@ -53,8 +53,8 @@ export function ExpenseEditor({
     setBusy(true);
     setError(null);
     try {
-      await window.chagok.saveExpense(form);
-      onSaved();
+      const saved = await window.chagok.saveExpense(form);
+      onSaved(saved);
     } catch (error) {
       setError(errorText(error));
     } finally {

@@ -4,7 +4,7 @@ import { Alert, AlertDescription } from "@/atomics/atoms/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/atomics/atoms/dialog";
 import { errorText } from "@/domains/settlement/hooks/useLedger";
 
-export function BackupDialog({ onClose }: { onClose: () => void }) {
+export function BackupDialog({ onClose, onBackupCreated }: { onClose: () => void; onBackupCreated?: () => void }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null),
     [notice, setNotice] = useState("");
@@ -17,7 +17,10 @@ export function BackupDialog({ onClose }: { onClose: () => void }) {
         await window.chagok.restoreBackup();
       } else {
         const result = await window.chagok.createBackup();
-        if (result) setNotice(`${result.fileName}에 전체 장부와 영수증 ${result.receipts}개를 백업했습니다.`);
+        if (result) {
+          setNotice(`${result.fileName}에 전체 장부와 영수증 ${result.receipts}개를 백업했습니다.`);
+          onBackupCreated?.();
+        }
       }
     } catch (error) {
       setError(errorText(error));
