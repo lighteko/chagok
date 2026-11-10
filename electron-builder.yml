@@ -1,0 +1,18 @@
+appId: com.lighteko.chagok
+productName: 차곡
+directories:
+  output: release
+files:
+  - out/**
+  - package.json
+asar: true
+win:
+  executableName: chagok
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  artifactName: chagok-${version}-setup.${ext}
+npmRebuild: false

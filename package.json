@@ -1,0 +1,65 @@
+{
+  "name": "chagok",
+  "productName": "차곡",
+  "version": "0.1.0",
+  "description": "차곡 — 수입과 지출을 모아 월별 정산을 만드는 로컬 데스크톱 앱",
+  "author": "lighteko",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "out/main/index.js",
+  "packageManager": "pnpm@10.26.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "build": "pnpm type-check && electron-vite build",
+    "build:win": "pnpm build && electron-builder --win nsis",
+    "build:dir": "pnpm build && electron-builder --dir",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix --max-warnings=0",
+    "type-check": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:smoke": "pnpm build && node scripts/smoke.mjs",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "5.107.1",
+    "clsx": "2.1.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "tailwind-merge": "3.4.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.65.0",
+    "@tailwindcss/vite": "4.3.5",
+    "@types/node": "^22.19.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "5.2.0",
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0",
+    "electron-vite": "6.0.0",
+    "eslint": "10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "globals": "^16.5.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4",
+    "tailwindcss": "4.3.5",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "8.72.2",
+    "vite": "7.3.8"
+  },
+  "lint-staged": {
+    "*.{js,mjs,ts,tsx}": [
+      "prettier --write",
+      "eslint --fix --max-warnings=0"
+    ],
+    "*.{json,md,yml,yaml,css,html}": "prettier --write"
+  }
+}
