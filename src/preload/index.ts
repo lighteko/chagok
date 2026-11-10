@@ -10,6 +10,7 @@ const api: DesktopApi = {
   cancelTransactionImport: token => ipcRenderer.invoke(IPC_CHANNELS.transactionsCancel, token),
   listTransactions: query => ipcRenderer.invoke(IPC_CHANNELS.transactionsList, query),
   getTransaction: id => ipcRenderer.invoke(IPC_CHANNELS.transactionDetail, id),
+  exportTransactions: month => ipcRenderer.invoke(IPC_CHANNELS.transactionsExport, month),
 };
 
 contextBridge.exposeInMainWorld("chagok", Object.freeze(api));

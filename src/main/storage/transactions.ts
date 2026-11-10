@@ -6,6 +6,7 @@ import type {
   TransactionList,
   TransactionQuery,
   TransactionRecord,
+  TransactionExportSnapshot,
 } from "@/shared/desktop/transactions";
 import { isValidMonth, shiftMonth } from "@/shared/utils/month";
 
@@ -39,6 +40,27 @@ export function migrateTransactions(db: DatabaseSync): void {
 
 export class TransactionRepository {
   constructor(private readonly db: DatabaseSync) {}
+
+  exportMonth(month: unknown): TransactionExportSnapshot {
+    if (!isValidMonth(month)) throw new Error("내보낼 월을 확인해 주세요.");
+    this.db.exec("BEGIN");
+    try {
+      const { summary } = this.list({ month, search: "", filter: "all", page: 0 });
+      if (!summary.count) throw new Error("내보낼 거래내역이 없습니다.");
+      if (summary.count > 1048575) throw new Error("한 달의 거래가 엑셀 시트의 최대 행 수를 넘었습니다.");
+      const rows = this.db
+        .prepare(
+          `SELECT t.*, i.file_name, i.sheet_name FROM bank_transactions t JOIN transaction_imports i ON i.id = t.import_id WHERE t.occurred_at >= ? AND t.occurred_at < ? ORDER BY t.occurred_at ASC, t.source_row ASC, t.id`,
+        )
+        .all(`${month}-01 00:00:00`, `${shiftMonth(month, 1)}-01 00:00:00`)
+        .map(row => this.record(row));
+      this.db.exec("COMMIT");
+      return { month, rows, summary };
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
 
   import(sheet: ParsedSheet, fileName: string, fileHash: string, accountName: string, months: string[]) {
     const rows = sheet.rows.filter(row => months.includes(row.occurredAt.slice(0, 7)));

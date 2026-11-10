@@ -77,3 +77,15 @@ export interface TransactionList {
 export interface TransactionDetail extends TransactionRecord {
   rawCells: RawCell[];
 }
+
+export interface TransactionExportSnapshot {
+  month: string;
+  rows: TransactionRecord[];
+  summary: TransactionList["summary"];
+}
+
+export interface TransactionExportResult {
+  month: string;
+  count: number;
+  fileName: string;
+}

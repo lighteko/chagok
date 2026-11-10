@@ -6,6 +6,7 @@ import type {
   TransactionQuery,
   TransactionList,
   TransactionDetail,
+  TransactionExportResult,
 } from "@/shared/desktop/transactions";
 
 export const IPC_CHANNELS = {
@@ -17,6 +18,7 @@ export const IPC_CHANNELS = {
   transactionsCancel: "transactions:cancel",
   transactionsList: "transactions:list",
   transactionDetail: "transactions:detail",
+  transactionsExport: "transactions:export",
 } as const;
 
 export interface AppInfo {
@@ -34,4 +36,5 @@ export interface DesktopApi {
   cancelTransactionImport: (token: string) => Promise<void>;
   listTransactions: (query: TransactionQuery) => Promise<TransactionList>;
   getTransaction: (id: string) => Promise<TransactionDetail>;
+  exportTransactions: (month: string) => Promise<TransactionExportResult | null>;
 }

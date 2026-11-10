@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, writeFile, copyFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile, copyFile, readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import writeXlsxFile from "write-excel-file/node";
+import readXlsxFile from "read-excel-file/node";
 import { _electron as electron, expect } from "@playwright/test";
 
 await mkdir("test-results", { recursive: true });
@@ -188,7 +189,7 @@ try {
         0,
         1,
         index + 100,
-        `페이지 검증 ${index + 1}`,
+        index === 54 ? "=1+1" : `페이지 검증 ${index + 1}`,
       ]),
     ],
     { sheet: "거래내역" },
@@ -214,6 +215,107 @@ try {
   await expect(page.getByRole("button", { name: "다음 페이지", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "다음 페이지", exact: true }).click();
   await expect(page.getByRole("table").getByRole("row")).toHaveCount(24);
+
+  // Export always includes the entire month, even when the current table is on page 2 or filtered.
+  const exportedFile = join(profile, "monthly.xlsx");
+  const exportButton = page.getByRole("button", { name: "엑셀 내보내기", exact: true });
+  const saveTo = async path =>
+    app.evaluate(({ dialog }, path) => {
+      dialog.showSaveDialog = async (_window, options) => {
+        if (!options.properties.includes("showOverwriteConfirmation"))
+          throw new Error("Missing overwrite confirmation");
+        return path ? { canceled: false, filePath: path } : { canceled: true, filePath: "" };
+      };
+    }, path);
+  const beforeExport = count("bank_transactions");
+  await saveTo(null);
+  await exportButton.click();
+  await expect(exportButton).toBeEnabled();
+  assert.equal((await readdir(profile)).includes("monthly.xlsx"), false);
+  await saveTo(exportedFile);
+  await exportButton.click();
+  await expect(page.getByRole("alert").filter({ hasText: "73건을 monthly.xlsx로 내보냈습니다" })).toBeVisible();
+  const output = await readXlsxFile(exportedFile);
+  assert.deepEqual(
+    output.map(sheet => sheet.sheet),
+    ["거래내역", "월별 요약"],
+  );
+  const data = output[0].data;
+  const column = title => data[0].indexOf(title);
+  const value = (row, title) => row[column(title)];
+  assert.equal(data.length, 74);
+  assert.equal(data.filter((row, index) => index > 0 && value(row, "거래 내용") === "지난달 입금").length, 0);
+  const unknownAmount = data.slice(1).find(row => value(row, "거래 내용") === "미확인 거래");
+  assert.equal(value(unknownAmount, "출금(원)"), null);
+  const zeroAmount = data.slice(1).find(row => value(row, "거래 내용") === "0원 거래");
+  assert.equal(value(zeroAmount, "출금(원)"), 0);
+  const dated = data.slice(1).find(row => value(row, "거래 내용") === "수업료 A");
+  assert.equal(value(dated, "거래일시").toISOString(), "2026-09-01T10:30:00.000Z");
+  assert.equal(typeof value(dated, "입금(원)"), "number");
+  assert.ok(data.slice(1).some(row => value(row, "거래 내용") === "=1+1"));
+  assert.ok(data.slice(1).some(row => value(row, "거래 후 잔액(원)") === -1000));
+  const overview = output[1].data;
+  const summaryValue = title => overview.find(row => row[0] === title)[1];
+  assert.equal(summaryValue("전체 거래 수"), 73);
+  assert.equal(summaryValue("입금 합계(원)"), firstPage.summary.deposits);
+  assert.equal(summaryValue("출금 합계(원)"), firstPage.summary.withdrawals);
+  assert.equal(summaryValue("입출금 차액(원)"), null);
+  assert.equal(summaryValue("금액 미확인 거래 수"), 5);
+  assert.equal(count("bank_transactions"), beforeExport);
+
+  await page.getByLabel("거래 내용 검색").fill("재료비");
+  await expect(page.getByRole("table").getByRole("row")).toHaveCount(5);
+  const extensionless = join(profile, "filtered-export");
+  await saveTo(extensionless);
+  await exportButton.click();
+  await expect(page.getByRole("alert").filter({ hasText: "73건을 filtered-export.xlsx로 내보냈습니다" })).toBeVisible();
+  assert.equal((await readXlsxFile(`${extensionless}.xlsx`))[0].data.length, 74);
+
+  // Overwrite a selected workbook successfully; a failed replacement must leave the destination intact.
+  await writeFile(exportedFile, "old content");
+  await saveTo(exportedFile);
+  await exportButton.click();
+  await expect(page.getByRole("alert").filter({ hasText: "73건을 monthly.xlsx로 내보냈습니다" })).toBeVisible();
+  assert.equal((await readXlsxFile(exportedFile))[0].data.length, 74);
+  const blocked = join(profile, "blocked.xlsx");
+  await mkdir(blocked);
+  await writeFile(join(blocked, "keep.txt"), "keep");
+  await saveTo(blocked);
+  await exportButton.click();
+  await expect(page.getByRole("alert").filter({ hasText: "엑셀 파일을 저장하지 못했습니다" })).toBeVisible();
+  assert.equal(await readFile(join(blocked, "keep.txt"), "utf8"), "keep");
+  assert.equal((await readdir(profile)).filter(name => name.startsWith(".chagok-export-")).length, 0);
+  assert.equal(count("bank_transactions"), beforeExport);
+  await saveTo(join(profile, "retry.xlsx"));
+  await exportButton.click();
+  await expect(page.getByRole("alert").filter({ hasText: "73건을 retry.xlsx로 내보냈습니다" })).toBeVisible();
+  await page.getByLabel("거래 내용 검색").fill("");
+  await page.getByLabel("정산월", { exact: true }).fill("2026-08");
+  await expect(page.getByRole("table").getByRole("row")).toHaveCount(2);
+  const augustFile = join(profile, "august.xlsx");
+  await saveTo(augustFile);
+  await exportButton.click();
+  await expect(page.getByRole("alert").filter({ hasText: "1건을 august.xlsx로 내보냈습니다" })).toBeVisible();
+  const augustOutput = await readXlsxFile(augustFile);
+  assert.equal(augustOutput[0].data.length, 2);
+  assert.equal(augustOutput[1].data.find(row => row[0] === "입출금 차액(원)")[1], 50000);
+  await page.getByLabel("정산월", { exact: true }).fill("2026-07");
+  await expect(exportButton).toBeDisabled();
+  assert.equal(
+    await page.evaluate(async () => {
+      try {
+        await window.chagok.exportTransactions("2026-13");
+        return false;
+      } catch {
+        return true;
+      }
+    }),
+    true,
+  );
+  await page.getByLabel("정산월", { exact: true }).fill("2026-09");
+  console.log(
+    "PASS: monthly XLSX export, all pages/filters, typed dates and amounts, null vs zero, literal text, cancel, overwrite, failure cleanup and retry",
+  );
 
   // Optional real attachment verification stays in this isolated profile and never enters Git.
   if (process.env.CHAGOK_EXAMPLE_XLSX) {

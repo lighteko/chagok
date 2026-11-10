@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileSpreadsheet, Plus, Upload } from "lucide-react";
+import { Download, FileSpreadsheet, Plus, Upload } from "lucide-react";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/atomics/atoms/alert";
 import { Badge } from "@/atomics/atoms/badge";
 import { Button } from "@/atomics/atoms/button";
@@ -28,6 +28,7 @@ export function WorkspacePage() {
   const [preview, setPreview] = useState<TransactionImportPreview | null>(null);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const transactions = useTransactions(workspace.preferences?.month ?? currentMonth(), revision);
 
   async function chooseFile() {
@@ -59,6 +60,27 @@ export function WorkspacePage() {
       text: `${result.inserted.toLocaleString()}건 저장했습니다.${result.duplicates ? ` 중복 ${result.duplicates.toLocaleString()}건은 제외했습니다.` : ""}`,
       error: false,
     });
+  }
+
+  async function exportMonth() {
+    if (!workspace.preferences) return;
+    setExporting(true);
+    setMessage(null);
+    try {
+      const result = await window.chagok.exportTransactions(workspace.preferences.month);
+      if (result)
+        setMessage({
+          text: `${result.month} 거래 ${result.count.toLocaleString()}건을 ${result.fileName}로 내보냈습니다.`,
+          error: false,
+        });
+    } catch {
+      setMessage({
+        text: "엑셀 파일을 저장하지 못했습니다. 파일이 다른 프로그램에서 열려 있는지와 저장 위치를 확인한 뒤 다시 시도해 주세요.",
+        error: true,
+      });
+    } finally {
+      setExporting(false);
+    }
   }
 
   if (!workspace.preferences)
@@ -134,6 +156,17 @@ export function WorkspacePage() {
         <div className="flex items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">{monthRange(month)}</p>
           <div className="flex gap-2">
+            {view === "transactions" && (
+              <Button
+                variant="outline"
+                disabled={exporting || importing || !transactions.data?.summary.count}
+                onClick={() => void exportMonth()}
+                title="검색·필터·페이지와 관계없이 선택한 달의 전체 거래를 내보냅니다."
+              >
+                <Download />
+                {exporting ? "내보내는 중…" : "엑셀 내보내기"}
+              </Button>
+            )}
             <Button
               variant="outline"
               disabled
@@ -143,7 +176,7 @@ export function WorkspacePage() {
               지출 추가
             </Button>
             <Button
-              disabled={importing}
+              disabled={importing || exporting}
               onClick={() => void chooseFile()}
             >
               <Upload />
@@ -184,7 +217,7 @@ export function WorkspacePage() {
                 onPage={transactions.setPage}
                 onImport={() => void chooseFile()}
                 onDetail={setDetailId}
-                importing={importing}
+                importing={importing || exporting}
                 loading={transactions.loading}
               />
             ) : (

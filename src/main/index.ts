@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { IPC_CHANNELS, type AppInfo } from "@/shared/desktop/contracts";
 import { AppDatabase } from "./storage/database";
 import { TransactionImportService } from "./imports/transactionImport";
+import { saveTransactionExport } from "./exports/transactionExport";
 
 const rendererFile = join(__dirname, "../renderer/index.html");
 let mainWindow: BrowserWindow | null = null;
@@ -137,6 +138,20 @@ if (!app.requestSingleInstanceLock()) {
         assertTrustedCaller(event);
         if (!database) throw new Error("저장소가 준비되지 않았습니다.");
         return database.transactions.detail(id);
+      });
+      ipcMain.handle(IPC_CHANNELS.transactionsExport, async (event, month: unknown) => {
+        assertTrustedCaller(event);
+        if (!database) throw new Error("저장소가 준비되지 않았습니다.");
+        const snapshot = database.transactions.exportMonth(month);
+        const selected = await dialog.showSaveDialog(mainWindow!, {
+          title: "월별 거래내역 엑셀 내보내기",
+          defaultPath: join(app.getPath("documents"), `차곡_거래내역_${snapshot.month}.xlsx`),
+          filters: [{ name: "엑셀 통합 문서", extensions: ["xlsx"] }],
+          properties: ["showOverwriteConfirmation"],
+        });
+        if (selected.canceled || !selected.filePath) return null;
+        assertTrustedCaller(event);
+        return saveTransactionExport(snapshot, selected.filePath);
       });
       createWindow();
       app.on("activate", () => {

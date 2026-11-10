@@ -29,6 +29,9 @@ importers:
       read-excel-file:
         specifier: ^9.3.14
         version: 9.3.14
+      write-excel-file:
+        specifier: 4.1.1
+        version: 4.1.1
     devDependencies:
       '@eslint/js':
         specifier: 10.0.1
@@ -99,9 +102,6 @@ importers:
       vite:
         specifier: 7.3.8
         version: 7.3.8(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.1)
-      write-excel-file:
-        specifier: ^4.1.1
-        version: 4.1.1
 
 packages:
 
