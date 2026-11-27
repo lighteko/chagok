@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { _electron as electron, expect } from "@playwright/test";
 
+const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
 delete env.ELECTRON_RENDERER_URL;
@@ -23,10 +24,10 @@ try {
   await expect(window.getByRole("heading", { name: "거래내역", exact: true })).toBeVisible();
   await expect(window.getByRole("heading", { name: "앱 연결 상태" })).toHaveCount(0);
   await expect(window.getByText("차곡차곡 모아서,", { exact: false })).toHaveCount(0);
-  await expect(window.getByText("차곡 v0.1.0", { exact: true })).toBeVisible();
+  await expect(window.getByText(`차곡 v${version}`, { exact: true })).toBeVisible();
   const info = await window.evaluate(() => window.chagok.getAppInfo());
   assert.equal(info.name, "차곡");
-  assert.equal(info.version, "0.1.0");
+  assert.equal(info.version, version);
   assert.deepEqual(await window.evaluate(() => ({ node: typeof window.require, process: typeof window.process })), {
     node: "undefined",
     process: "undefined",
