@@ -6,10 +6,12 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { strToU8, zipSync } from "fflate";
+import appIcon from "../../../build/icons/icon.png?asset";
 import bridgeAsset from "./claudeBridge.mjs?asset";
 
 const run = promisify(execFile);
 const entryPoint = "server/index.mjs";
+const projectUrl = "https://github.com/lighteko/chagok";
 
 function writePrivateFile(path: string, contents: string | Uint8Array) {
   const temporary = `${path}.${randomUUID()}.tmp`;
@@ -72,8 +74,13 @@ export class ClaudeDesktop {
       name: "chagok",
       display_name: "차곡",
       version,
-      description: "Read your local Chagok ledger and classify transactions when you grant permission in Chagok.",
+      description: "Claude에서 차곡의 거래내역과 월별 정산 요약을 조회할 수 있습니다.",
+      long_description:
+        "차곡에서 연결을 켜면 장부를 조회할 수 있습니다. 분류·규칙을 변경하려면 ‘거래 분류 및 규칙 관리 허용’을 켜세요.",
       author: { name: "lighteko" },
+      homepage: projectUrl,
+      repository: { type: "git", url: projectUrl },
+      icon: "icon.png",
       server: {
         type: "node",
         entry_point: entryPoint,
@@ -86,6 +93,7 @@ export class ClaudeDesktop {
       this.bundlePath(),
       zipSync({
         "manifest.json": strToU8(JSON.stringify(manifest)),
+        [manifest.icon]: readFileSync(appIcon),
         [entryPoint]: readFileSync(bridgeAsset),
         "server/config.json": strToU8(JSON.stringify({ connectionFile: this.connectionPath(), version })),
       }),

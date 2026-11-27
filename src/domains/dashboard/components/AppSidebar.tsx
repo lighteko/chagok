@@ -98,12 +98,12 @@ export function AppSidebar({
           )}
           <SidebarMenuItem>
             <SidebarMenuButton
-              tooltip="MCP 연결"
-              aria-label="MCP 연결"
+              tooltip="Claude Desktop 연결"
+              aria-label="Claude Desktop 연결"
               onClick={onMcp}
             >
               <Plug aria-hidden="true" />
-              <span>MCP 연결</span>
+              <span>Claude Desktop 연결</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>

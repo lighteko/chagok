@@ -1,7 +1,7 @@
 {
   "name": "chagok",
   "productName": "차곡",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "차곡 — 수입과 지출을 모아 월별 정산을 만드는 로컬 데스크톱 앱",
   "author": "lighteko",
   "license": "UNLICENSED",

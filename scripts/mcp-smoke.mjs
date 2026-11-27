@@ -83,7 +83,7 @@ try {
   const page = await app.firstWindow();
   const api = (method, ...args) =>
     page.evaluate(({ method, args }) => window.chagok[method](...args), { method, args });
-  await expect(page.getByRole("button", { name: "MCP 연결", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Claude Desktop 연결", exact: true })).toBeVisible();
   assert.equal(resolve(await app.evaluate(({ app }) => app.getPath("userData"))), profile);
   assert.deepEqual(await api("getMcpStatus"), disabledStatus);
   await app.evaluate(({ clipboard, dialog }, path) => {
@@ -115,15 +115,17 @@ try {
     ruleId: null,
   });
 
-  await page.getByRole("button", { name: "MCP 연결", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "MCP 연결" });
-  const enable = dialog.getByRole("button", { name: "연결 켜기" });
+  await page.getByRole("button", { name: "Claude Desktop 연결", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Claude Desktop 연결" });
+  const manualSetup = dialog.getByText("다른 클라이언트 설정", { exact: true });
+  const enable = dialog.getByRole("button", { name: "다른 클라이언트 연결 켜기", exact: true });
   const disable = dialog.getByRole("button", { name: "연결 끄기" });
   const copy = dialog.getByRole("button", { name: "토큰 복사" });
   const allowClassification = dialog.getByRole("checkbox", { name: "거래 분류 및 규칙 관리 허용" });
   async function connect(writable = false) {
     await expect(allowClassification).not.toBeChecked();
     if (writable) await allowClassification.check();
+    if (!(await enable.isVisible())) await manualSetup.click();
     await enable.click();
     const urlInput = dialog.getByLabel("서버 주소");
     await expect(urlInput).toHaveValue(/^http:\/\/127\.0\.0\.1:\d+\/mcp$/);
@@ -367,10 +369,10 @@ try {
     if (!/context was destroyed|closed|navigation/i.test(error.message)) throw error;
   });
   await page.waitForLoadState("domcontentloaded");
-  await expect(page.getByRole("button", { name: "MCP 연결", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Claude Desktop 연결", exact: true })).toBeVisible();
   assert.deepEqual(await api("getMcpStatus"), disabledStatus);
   await assert.rejects(post(newUrl, newToken, "tools/list"), { name: "TypeError" });
-  await page.getByRole("button", { name: "MCP 연결", exact: true }).click();
+  await page.getByRole("button", { name: "Claude Desktop 연결", exact: true }).click();
   const afterRestore = await connect();
   await app.close();
   app = undefined;
@@ -400,19 +402,28 @@ try {
     };
     process.getBuiltinModule("node:module").syncBuiltinESMExports();
   });
-  await restarted.getByRole("button", { name: "MCP 연결", exact: true }).click();
-  const claudeDialog = restarted.getByRole("dialog", { name: "MCP 연결" });
-  await claudeDialog.getByRole("button", { name: "Claude Desktop 연결", exact: true }).click();
+  await restarted.getByRole("button", { name: "Claude Desktop 연결", exact: true }).click();
+  const claudeDialog = restarted.getByRole("dialog", { name: "Claude Desktop 연결" });
+  await expect(claudeDialog.getByRole("button", { name: "다른 클라이언트 연결 켜기" })).toBeHidden();
+  await claudeDialog.getByRole("button", { name: "Claude Desktop 확장 설치", exact: true }).click();
   await expect(claudeDialog.getByRole("button", { name: "연결 끄기", exact: true })).toBeEnabled();
   const bundlePath = join(profile, "claude-desktop", "chagok.mcpb");
   assert.equal(await app.evaluate(() => globalThis.openedClaudeBundle), bundlePath);
   const files = unzipSync(await readFile(bundlePath));
   const manifest = JSON.parse(strFromU8(files["manifest.json"]));
   const config = JSON.parse(strFromU8(files["server/config.json"]));
+  assert.equal(manifest.description, "Claude에서 차곡의 거래내역과 월별 정산 요약을 조회할 수 있습니다.");
+  assert.match(manifest.long_description, /연결을 켜면 장부를 조회.*거래 분류 및 규칙 관리 허용/);
+  assert.equal(manifest.repository.url, "https://github.com/lighteko/chagok");
+  assert.equal(manifest.icon, "icon.png");
+  assert.deepEqual(
+    Buffer.from(files[manifest.icon]),
+    await readFile(new URL("../build/icons/icon.png", import.meta.url)),
+  );
   assert.equal(manifest.server.mcp_config.command, "node");
   assert.equal(config.connectionFile, join(profile, "claude-desktop", "connection.json"));
   const credential = JSON.parse(await readFile(config.connectionFile, "utf8"));
-  assert.ok(!Object.values(files).some(file => strFromU8(file).includes(credential.token)));
+  assert.ok(!Object.values(files).some(file => Buffer.from(file).includes(credential.token)));
 
   const unpacked = join(profile, "unpacked-mcpb");
   for (const [path, data] of Object.entries(files)) {
@@ -455,7 +466,7 @@ try {
   assert.deepEqual((await bridgeRequest("tools/list")).tools, []);
   await claudeDialog.getByRole("checkbox", { name: "거래 분류 및 규칙 관리 허용" }).check();
   const beforeEnable = notifications();
-  await claudeDialog.getByRole("button", { name: "연결 켜기", exact: true }).click();
+  await claudeDialog.getByRole("button", { name: "Claude Desktop 연결 켜기", exact: true }).click();
   await expect.poll(notifications).toBeGreaterThan(beforeEnable);
   assert.notEqual(JSON.parse(await readFile(config.connectionFile, "utf8")).token, credential.token);
   const writeTools = (await bridgeRequest("tools/list")).tools.map(tool => tool.name);

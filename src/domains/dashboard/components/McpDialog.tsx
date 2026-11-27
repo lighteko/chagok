@@ -101,10 +101,8 @@ export function McpDialog({ onClose }: { onClose: () => void }) {
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>MCP 연결</DialogTitle>
-          <DialogDescription>
-            같은 PC의 MCP 클라이언트에서 거래내역과 월별 정산 요약을 읽을 수 있습니다.
-          </DialogDescription>
+          <DialogTitle>Claude Desktop 연결</DialogTitle>
+          <DialogDescription>Claude Desktop에서 차곡의 거래내역과 월별 정산 요약을 확인하세요.</DialogDescription>
         </DialogHeader>
         {error && (
           <Alert variant="destructive">
@@ -112,42 +110,7 @@ export function McpDialog({ onClose }: { onClose: () => void }) {
           </Alert>
         )}
         {status?.url ? (
-          <div className="grid gap-3">
-            <p className="text-sm font-medium">{status.canClassify ? "거래 분류 및 규칙 관리 허용됨" : "읽기 전용"}</p>
-            <details open={!status.claudeDesktopPrepared}>
-              <summary className="cursor-pointer text-sm">다른 MCP 클라이언트 설정</summary>
-              <div className="mt-2 grid gap-3">
-                <div className="grid gap-2">
-                  <Label htmlFor="mcp-url">서버 주소</Label>
-                  <Input
-                    id="mcp-url"
-                    readOnly
-                    value={status.url}
-                    onFocus={event => event.currentTarget.select()}
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Streamable HTTP 방식으로 이 주소와 Bearer 토큰을 등록하세요.
-                </p>
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => void copyToken()}
-                  >
-                    토큰 복사
-                  </Button>
-                  <span
-                    role="status"
-                    className="text-sm text-muted-foreground"
-                  >
-                    {copied ? "토큰을 복사했습니다." : ""}
-                  </span>
-                </div>
-              </div>
-            </details>
-          </div>
+          <p className="text-sm font-medium">{status.canClassify ? "거래 분류 및 규칙 관리 허용됨" : "읽기 전용"}</p>
         ) : (
           <div className="grid gap-2">
             <div className="flex items-center gap-2">
@@ -168,47 +131,110 @@ export function McpDialog({ onClose }: { onClose: () => void }) {
             </p>
           </div>
         )}
-        <div className="grid gap-2 rounded-md border p-3">
-          <p className="text-sm text-muted-foreground">
-            Claude Desktop에서 차곡 확장을 한 번 설치하세요. 이후에는 차곡에서 연결만 켜면 됩니다.
-          </p>
+        {!status?.claudeDesktopPrepared && (
+          <p className="text-sm text-muted-foreground">처음 한 번 Claude Desktop에서 차곡 확장 설치를 승인하세요.</p>
+        )}
+        {status?.claudeDesktopPrepared && (
           <div className="flex flex-wrap gap-2">
             <Button
-              variant={status?.claudeDesktopPrepared ? "outline" : "default"}
+              variant="outline"
               size="sm"
-              disabled={busy || !status}
+              disabled={busy}
               onClick={() => void connectClaude()}
             >
-              {status?.claudeDesktopPrepared ? "확장 설치 다시 열기" : "Claude Desktop 연결"}
+              확장 설치 다시 열기
             </Button>
-            {status?.claudeDesktopPrepared && (
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={busy}
-                onClick={() => void revealClaudeBundle()}
-              >
-                설치 파일 보기
-              </Button>
-            )}
-          </div>
-          {claudeHint && (
-            <p
-              role="status"
-              className="text-sm text-muted-foreground"
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => void revealClaudeBundle()}
             >
-              {claudeHint}
-            </p>
-          )}
-        </div>
-        <DialogFooter>
-          <Button
-            disabled={busy || (!status && !error)}
-            variant={status?.url || !status?.claudeDesktopPrepared ? "outline" : "default"}
-            onClick={() => void toggle()}
+              설치 파일 보기
+            </Button>
+          </div>
+        )}
+        {claudeHint && (
+          <p
+            role="status"
+            className="text-sm text-muted-foreground"
           >
-            {status?.url ? "연결 끄기" : "연결 켜기"}
-          </Button>
+            {claudeHint}
+          </p>
+        )}
+        <details>
+          <summary className="cursor-pointer text-sm text-muted-foreground">다른 클라이언트 설정</summary>
+          {status?.url ? (
+            <div className="mt-2 grid gap-3">
+              <div className="grid gap-2">
+                <Label htmlFor="mcp-url">서버 주소</Label>
+                <Input
+                  id="mcp-url"
+                  readOnly
+                  value={status.url}
+                  onFocus={event => event.currentTarget.select()}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Streamable HTTP 방식으로 이 주소와 Bearer 토큰을 등록하세요.
+              </p>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => void copyToken()}
+                >
+                  토큰 복사
+                </Button>
+                <span
+                  role="status"
+                  className="text-sm text-muted-foreground"
+                >
+                  {copied ? "토큰을 복사했습니다." : ""}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy || (!status && !error)}
+                onClick={() => void toggle()}
+              >
+                다른 클라이언트 연결 켜기
+              </Button>
+            </div>
+          )}
+        </details>
+        <DialogFooter>
+          {status?.url && (
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => void toggle()}
+            >
+              연결 끄기
+            </Button>
+          )}
+          {!status?.claudeDesktopPrepared ? (
+            <Button
+              disabled={busy || (!status && !error)}
+              onClick={() => void connectClaude()}
+            >
+              Claude Desktop 확장 설치
+            </Button>
+          ) : (
+            !status.url && (
+              <Button
+                disabled={busy}
+                onClick={() => void toggle()}
+              >
+                Claude Desktop 연결 켜기
+              </Button>
+            )
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
