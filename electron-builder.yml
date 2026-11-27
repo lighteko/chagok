@@ -5,6 +5,7 @@ directories:
 files:
   - out/**
   - package.json
+  - src/atomics/atoms/LICENSE.shadcn
   - src/shared/assets/fonts/OFL.txt
 asar: true
 publish:
