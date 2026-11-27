@@ -6,6 +6,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { McpStatus } from "@/shared/desktop/contracts";
 import type { AppDatabase } from "../storage/database";
+import type { ClaudeDesktop } from "./claudeDesktop";
 import { createLedgerTools } from "./ledgerTools";
 
 const HOST = "127.0.0.1";
@@ -71,12 +72,17 @@ export class LocalMcp {
     private readonly version: string,
     private readonly getDatabase: () => AppDatabase,
     private readonly onLedgerChanged: () => void,
+    private readonly claudeDesktop: ClaudeDesktop,
   ) {}
 
   status(): McpStatus {
     const address = this.connection?.server.address();
     const url = address && typeof address === "object" ? `http://${HOST}:${address.port}${ENDPOINT}` : null;
-    return { url, canClassify: Boolean(url && this.connection?.canClassify) };
+    return {
+      url,
+      canClassify: Boolean(url && this.connection?.canClassify),
+      claudeDesktopPrepared: this.claudeDesktop.isPrepared(),
+    };
   }
 
   token(): string | undefined {
@@ -84,7 +90,10 @@ export class LocalMcp {
   }
 
   async start(canClassify: boolean): Promise<McpStatus> {
-    if (this.connection) return this.status();
+    if (this.connection) {
+      this.publishClaudeConnection();
+      return this.status();
+    }
     const token = randomBytes(32).toString("base64url");
     const expectedToken = Buffer.from(token);
     const handler = createMcpHandler(
@@ -120,12 +129,19 @@ export class LocalMcp {
       server.on("error", () => {
         if (this.connection?.server === server) this.stop();
       });
+      this.publishClaudeConnection();
       return this.status();
     } catch {
       if (startup.signal.aborted) return this.status();
       this.stop();
       throw new Error("MCP 연결을 시작하지 못했습니다. 다시 시도해 주세요.");
     }
+  }
+
+  private publishClaudeConnection() {
+    const address = this.connection?.server.address();
+    const token = this.token();
+    if (address && typeof address === "object" && token) this.claudeDesktop.publish(address.port, token);
   }
 
   stop(): void {
@@ -135,6 +151,7 @@ export class LocalMcp {
     connection.startup.abort();
     connection.server.close();
     connection.server.closeAllConnections();
+    this.claudeDesktop.disconnect();
     void connection.handler.close().catch(() => console.error("MCP 연결을 정리하지 못했습니다."));
   }
 }

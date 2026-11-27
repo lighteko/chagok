@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { get } from "node:http";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { createInterface } from "node:readline";
 import { _electron as electron, expect } from "@playwright/test";
+import { strFromU8, unzipSync } from "fflate";
 import writeXlsx from "write-excel-file/node";
 
 await mkdir("test-results", { recursive: true });
@@ -70,11 +73,12 @@ async function rpc(...args) {
   return json;
 }
 
-const disabledStatus = { url: null, canClassify: false };
+const disabledStatus = { url: null, canClassify: false, claudeDesktopPrepared: false };
 const toolError = response => response.error || response.result?.isError;
 const callTool = ({ url, token }, name, args) => rpc(url, token, "tools/call", { name, arguments: args });
 
 let app = await launch();
+let bridge;
 try {
   const page = await app.firstWindow();
   const api = (method, ...args) =>
@@ -128,7 +132,7 @@ try {
     await expect(dialog.getByRole("status")).toHaveText("토큰을 복사했습니다.");
     const token = await app.evaluate(() => globalThis.mcpTestClipboard);
     assert.match(token, /^[\w-]{43}$/);
-    assert.deepEqual(await api("getMcpStatus"), { url, canClassify: writable });
+    assert.deepEqual(await api("getMcpStatus"), { url, canClassify: writable, claudeDesktopPrepared: false });
     return { url, token };
   }
   const { url, token } = await connect();
@@ -374,9 +378,106 @@ try {
   app = await launch();
   const restarted = await app.firstWindow();
   assert.deepEqual(await restarted.evaluate(() => window.chagok.getMcpStatus()), disabledStatus);
+
+  await app.evaluate(({ shell }) => {
+    shell.openPath = async path => {
+      globalThis.openedClaudeBundle = path;
+      return "";
+    };
+    shell.showItemInFolder = path => {
+      globalThis.openedClaudeBundle = path;
+    };
+    const childProcess = process.getBuiltinModule("node:child_process");
+    const originalSpawn = childProcess.spawn;
+    const { EventEmitter } = process.getBuiltinModule("node:events");
+    childProcess.spawn = (executable, args, options) => {
+      if (!args?.[0]?.endsWith(".mcpb")) return originalSpawn(executable, args, options);
+      globalThis.openedClaudeBundle = args[0];
+      const child = new EventEmitter();
+      child.unref = () => {};
+      queueMicrotask(() => child.emit("spawn"));
+      return child;
+    };
+    process.getBuiltinModule("node:module").syncBuiltinESMExports();
+  });
+  await restarted.getByRole("button", { name: "MCP 연결", exact: true }).click();
+  const claudeDialog = restarted.getByRole("dialog", { name: "MCP 연결" });
+  await claudeDialog.getByRole("button", { name: "Claude Desktop 연결", exact: true }).click();
+  await expect(claudeDialog.getByRole("button", { name: "연결 끄기", exact: true })).toBeEnabled();
+  const bundlePath = join(profile, "claude-desktop", "chagok.mcpb");
+  assert.equal(await app.evaluate(() => globalThis.openedClaudeBundle), bundlePath);
+  const files = unzipSync(await readFile(bundlePath));
+  const manifest = JSON.parse(strFromU8(files["manifest.json"]));
+  const config = JSON.parse(strFromU8(files["server/config.json"]));
+  assert.equal(manifest.server.mcp_config.command, "node");
+  assert.equal(config.connectionFile, join(profile, "claude-desktop", "connection.json"));
+  const credential = JSON.parse(await readFile(config.connectionFile, "utf8"));
+  assert.ok(!Object.values(files).some(file => strFromU8(file).includes(credential.token)));
+
+  const unpacked = join(profile, "unpacked-mcpb");
+  for (const [path, data] of Object.entries(files)) {
+    const target = join(unpacked, path);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, data);
+  }
+  bridge = spawn(process.execPath, [join(unpacked, manifest.server.entry_point)], {
+    stdio: ["pipe", "pipe", "inherit"],
+  });
+  const messages = [];
+  createInterface({ input: bridge.stdout }).on("line", line => messages.push(JSON.parse(line)));
+  async function bridgeRequest(method, params) {
+    const requestId = ++id;
+    bridge.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: requestId, method, params })}\n`);
+    await expect.poll(() => messages.some(message => message.id === requestId)).toBe(true);
+    const reply = messages.find(message => message.id === requestId);
+    assert.ok(reply.result, JSON.stringify(reply.error));
+    return reply.result;
+  }
+  const initialized = await bridgeRequest("initialize", {
+    protocolVersion: "2024-11-05",
+    capabilities: {},
+    clientInfo: { name: "claude-desktop-smoke", version: "1.0.0" },
+  });
+  assert.equal(initialized.protocolVersion, "2024-11-05");
+  assert.equal(initialized.capabilities.tools.listChanged, true);
+  bridge.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n');
+  const readOnlyTools = (await bridgeRequest("tools/list")).tools.map(tool => tool.name);
+  assert.ok(readOnlyTools.includes("get_monthly_settlement"));
+  assert.ok(!readOnlyTools.includes("classify_transactions"));
+  const claudeSettlement = await bridgeRequest("tools/call", { name: "get_monthly_settlement", arguments: { month } });
+  assert.equal(claudeSettlement.structuredContent.month, month);
+
+  const notifications = () => messages.filter(message => message.method === "notifications/tools/list_changed").length;
+  const beforeDisable = notifications();
+  await claudeDialog.getByRole("button", { name: "연결 끄기", exact: true }).click();
+  await expect.poll(notifications).toBeGreaterThan(beforeDisable);
+  await assert.rejects(readFile(config.connectionFile), { code: "ENOENT" });
+  assert.deepEqual((await bridgeRequest("tools/list")).tools, []);
+  await claudeDialog.getByRole("checkbox", { name: "거래 분류 및 규칙 관리 허용" }).check();
+  const beforeEnable = notifications();
+  await claudeDialog.getByRole("button", { name: "연결 켜기", exact: true }).click();
+  await expect.poll(notifications).toBeGreaterThan(beforeEnable);
+  assert.notEqual(JSON.parse(await readFile(config.connectionFile, "utf8")).token, credential.token);
+  const writeTools = (await bridgeRequest("tools/list")).tools.map(tool => tool.name);
+  assert.ok(writeTools.includes("classify_transactions"));
+  const savedRule = await bridgeRequest("tools/call", {
+    name: "save_classification_rule",
+    arguments: { ...rule, id: "claude-desktop-rule", name: "Claude 연결 테스트 규칙" },
+  });
+  assert.equal(savedRule.structuredContent.rule.id, "claude-desktop-rule");
+  await app.close();
+  app = undefined;
+  await assert.rejects(readFile(config.connectionFile), { code: "ENOENT" });
+  app = await launch();
+  const reopened = await app.firstWindow();
+  assert.deepEqual(await reopened.evaluate(() => window.chagok.getMcpStatus()), {
+    ...disabledStatus,
+    claudeDesktopPrepared: true,
+  });
   console.log(
-    "MCP verified: authentication, classification permissions, rule automation, audit and settlement safeguards, and connection lifecycle.",
+    "MCP verified: authentication, automation, audit safeguards, and the Claude Desktop bundle across connection and permission changes.",
   );
 } finally {
+  bridge?.kill();
   await app?.close();
 }

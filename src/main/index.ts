@@ -18,6 +18,7 @@ import {
 } from "./backups/backupService";
 import { saveSettlementExport } from "./exports/settlementExport";
 import { LocalMcp } from "./mcp/localMcp";
+import { ClaudeDesktop } from "./mcp/claudeDesktop";
 import { AppUpdates } from "./updates/appUpdates";
 import appIcon from "../../build/icons/icon.png?asset";
 
@@ -25,6 +26,7 @@ const rendererFile = join(__dirname, "../renderer/index.html");
 let mainWindow: BrowserWindow | null = null;
 let database: AppDatabase | null = null;
 let restoring = false;
+const claudeDesktop = new ClaudeDesktop(() => join(app.getPath("userData"), "claude-desktop"));
 const mcp = new LocalMcp(
   app.getVersion(),
   () => {
@@ -32,6 +34,7 @@ const mcp = new LocalMcp(
     return database;
   },
   () => notifyWindow(IPC_CHANNELS.mcpLedgerChanged),
+  claudeDesktop,
 );
 
 function notifyWindow(channel: string, ...args: unknown[]): void {
@@ -117,6 +120,7 @@ if (!app.requestSingleInstanceLock()) {
       app.setAppUserModelId("com.lighteko.chagok");
       await recoverInterruptedRestore(app.getPath("userData"));
       database = new AppDatabase(join(app.getPath("userData"), "storage"));
+      claudeDesktop.disconnect();
       const updateSupported =
         process.platform === "win32" && app.isPackaged && existsSync(join(process.resourcesPath, "app-update.yml"));
       const updates = new AppUpdates(updateSupported ? autoUpdater : null, status =>
@@ -171,6 +175,18 @@ if (!app.requestSingleInstanceLock()) {
         const token = mcp.token();
         if (!token) throw new Error("MCP 연결을 먼저 켜 주세요.");
         clipboard.writeText(token);
+      });
+      ipcMain.handle(IPC_CHANNELS.mcpConnectClaudeDesktop, async (event, allowClassification: unknown) => {
+        assertTrustedCaller(event);
+        if (typeof allowClassification !== "boolean") throw new Error("MCP 연결 설정이 올바르지 않습니다.");
+        claudeDesktop.prepare(app.getVersion());
+        await mcp.start(allowClassification);
+        const opened = await claudeDesktop.open();
+        return { opened, status: mcp.status() };
+      });
+      ipcMain.handle(IPC_CHANNELS.mcpRevealClaudeBundle, event => {
+        assertTrustedCaller(event);
+        if (claudeDesktop.isPrepared()) claudeDesktop.reveal();
       });
       ipcMain.handle(IPC_CHANNELS.preferencesGet, (event, legacy: unknown) => {
         assertTrustedCaller(event);

@@ -30,6 +30,8 @@ export const IPC_CHANNELS = {
   mcpStatus: "mcp:status",
   mcpSetEnabled: "mcp:set-enabled",
   mcpCopyToken: "mcp:copy-token",
+  mcpConnectClaudeDesktop: "mcp:connect-claude-desktop",
+  mcpRevealClaudeBundle: "mcp:reveal-claude-bundle",
   mcpLedgerChanged: "mcp:ledger-changed",
   preferencesGet: "preferences:get",
   preferencesSave: "preferences:save",
@@ -77,6 +79,7 @@ export type AppUpdateStatus =
 export interface McpStatus {
   url: string | null;
   canClassify: boolean;
+  claudeDesktopPrepared: boolean;
 }
 
 export interface DesktopApi {
@@ -88,6 +91,8 @@ export interface DesktopApi {
   getMcpStatus: () => Promise<McpStatus>;
   setMcpEnabled: (enabled: boolean, allowClassification?: boolean) => Promise<McpStatus>;
   copyMcpToken: () => Promise<void>;
+  connectClaudeDesktop: (allowClassification: boolean) => Promise<{ opened: boolean; status: McpStatus }>;
+  revealClaudeBundle: () => Promise<void>;
   onMcpLedgerChanged: (listener: () => void) => () => void;
   getWorkspacePreferences: (legacy?: WorkspacePreferences) => Promise<WorkspacePreferences>;
   saveWorkspacePreferences: (preferences: WorkspacePreferences) => Promise<WorkspacePreferences>;

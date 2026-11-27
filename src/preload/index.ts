@@ -15,6 +15,9 @@ const api: DesktopApi = {
   setMcpEnabled: (enabled, allowClassification) =>
     ipcRenderer.invoke(IPC_CHANNELS.mcpSetEnabled, enabled, allowClassification),
   copyMcpToken: () => ipcRenderer.invoke(IPC_CHANNELS.mcpCopyToken),
+  connectClaudeDesktop: allowClassification =>
+    ipcRenderer.invoke(IPC_CHANNELS.mcpConnectClaudeDesktop, allowClassification),
+  revealClaudeBundle: () => ipcRenderer.invoke(IPC_CHANNELS.mcpRevealClaudeBundle),
   onMcpLedgerChanged: listener => {
     const notify = () => listener();
     ipcRenderer.on(IPC_CHANNELS.mcpLedgerChanged, notify);
