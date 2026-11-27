@@ -134,7 +134,7 @@
 
 ## 구조
 
-`lightlink-ontime-nextjs`의 `atomics / domains / shared` 구분을 유지합니다.
+차곡은 UI 구성 요소(`atomics`), 업무 기능(`domains`), 공통 코드(`shared`)를 분리합니다.
 
 ```text
 src/
