@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { IPC_CHANNELS, type AppInfo } from "@/shared/desktop/contracts";
@@ -15,12 +15,29 @@ import {
   recoverInterruptedRestore,
 } from "./backups/backupService";
 import { saveSettlementExport } from "./exports/settlementExport";
+import { LocalMcp } from "./mcp/localMcp";
 import appIcon from "../../build/icons/icon.png?asset";
 
 const rendererFile = join(__dirname, "../renderer/index.html");
 let mainWindow: BrowserWindow | null = null;
 let database: AppDatabase | null = null;
 let restoring = false;
+const mcp = new LocalMcp(
+  app.getVersion(),
+  () => {
+    if (restoring || !database) throw new Error("장부를 열 수 없습니다. 차곡 상태를 확인해 주세요.");
+    return database;
+  },
+  () => {
+    const contents = mainWindow?.webContents;
+    if (!contents || contents.isDestroyed()) return;
+    try {
+      contents.send(IPC_CHANNELS.mcpLedgerChanged);
+    } catch (error) {
+      console.warn("MCP 변경을 앱 화면에 알리지 못했습니다.", error);
+    }
+  },
+);
 
 function assertTrustedCaller(event: IpcMainInvokeEvent): void {
   if (restoring) throw new Error("백업 복원 중입니다. 잠시 후 다시 시도해 주세요.");
@@ -114,6 +131,24 @@ if (!app.requestSingleInstanceLock()) {
       ipcMain.handle(IPC_CHANNELS.appInfo, (event): AppInfo => {
         assertTrustedCaller(event);
         return { name: "차곡", version: app.getVersion(), platform: process.platform };
+      });
+      ipcMain.handle(IPC_CHANNELS.mcpStatus, event => {
+        assertTrustedCaller(event);
+        return mcp.status();
+      });
+      ipcMain.handle(IPC_CHANNELS.mcpSetEnabled, (event, enabled: unknown, allowClassification: unknown = false) => {
+        assertTrustedCaller(event);
+        if (typeof enabled !== "boolean" || typeof allowClassification !== "boolean")
+          throw new Error("MCP 연결 설정이 올바르지 않습니다.");
+        if (enabled) return mcp.start(allowClassification);
+        mcp.stop();
+        return mcp.status();
+      });
+      ipcMain.handle(IPC_CHANNELS.mcpCopyToken, event => {
+        assertTrustedCaller(event);
+        const token = mcp.token();
+        if (!token) throw new Error("MCP 연결을 먼저 켜 주세요.");
+        clipboard.writeText(token);
       });
       ipcMain.handle(IPC_CHANNELS.preferencesGet, (event, legacy: unknown) => {
         assertTrustedCaller(event);
@@ -277,6 +312,7 @@ if (!app.requestSingleInstanceLock()) {
           if (confirmation.response !== 1) return null;
           assertTrustedCaller(event);
           restoring = true;
+          mcp.stop();
           const storage = join(app.getPath("userData"), "storage");
           try {
             const result = await installRestore(plan, storage, () => {
@@ -319,10 +355,12 @@ if (!app.requestSingleInstanceLock()) {
       app.exit(1);
     });
   app.on("will-quit", () => {
+    mcp.stop();
     database?.close();
     database = null;
   });
   app.on("window-all-closed", () => {
+    mcp.stop();
     if (process.platform !== "darwin") app.quit();
   });
 }

@@ -65,7 +65,12 @@ export function ClassificationEditor({
         <h3 className="font-semibold">정산 분류·보정</h3>
         <p className="text-sm text-muted-foreground">보정 값은 정산에 사용하며 아래의 엑셀 원본은 보존합니다.</p>
       </div>
-      {form.ruleId && <p className="text-sm text-muted-foreground">{form.note} · 제안을 검토한 뒤 확정해 주세요.</p>}
+      {form.ruleId && (
+        <p className="text-sm text-muted-foreground">
+          {form.note}
+          {!form.confirmed && " · 제안을 검토한 뒤 확정해 주세요."}
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-4">
         <div className="grid gap-2">
           <Label htmlFor="class-direction">분류</Label>

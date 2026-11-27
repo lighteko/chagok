@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Download, Plus, Upload } from "lucide-react";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/atomics/atoms/alert";
 import { Badge } from "@/atomics/atoms/badge";
@@ -25,6 +25,7 @@ import { ExpenseEditor } from "@/domains/expenses/components/ExpenseEditor";
 import { ExpensesPage } from "@/domains/expenses/components/ExpensesPage";
 import type { Expense } from "@/shared/desktop/ledger";
 import { BackupDialog } from "./BackupDialog";
+import { McpDialog } from "./McpDialog";
 import { TutorialGuide } from "@/domains/tutorial/components/TutorialGuide";
 import { tutorialSteps } from "@/domains/tutorial/content/steps";
 import type { SettlementNavigation } from "@/domains/settlement/types";
@@ -43,6 +44,7 @@ export function WorkspacePage() {
   const ledger = useLedger(workspace.preferences?.month ?? currentMonth(), revision);
   const [expenseEditor, setExpenseEditor] = useState<{ expense?: Expense } | null>(null);
   const [backupOpen, setBackupOpen] = useState(false);
+  const [mcpOpen, setMcpOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false),
     [tutorialIndex, setTutorialIndex] = useState(0),
     [tutorialFinished, setTutorialFinished] = useState(false);
@@ -52,6 +54,11 @@ export function WorkspacePage() {
   const [expenseNavigation, setExpenseNavigation] = useState<ExpenseNavigation | null>(null);
   const settlementNavigationHandled = useCallback(() => setSettlementNavigation(null), []);
   const expenseNavigationHandled = useCallback(() => setExpenseNavigation(null), []);
+  const changed = useCallback(() => {
+    setBackedUp(false);
+    setRevision(value => value + 1);
+  }, []);
+  useEffect(() => window.chagok.onMcpLedgerChanged(changed), [changed]);
   function revealTutorialTarget(target: string) {
     requestAnimationFrame(() => {
       document.querySelector("main")?.scrollTo({ top: 0 });
@@ -135,11 +142,6 @@ export function WorkspacePage() {
     }
     setBackupOpen(true);
   }
-  function changed() {
-    setBackedUp(false);
-    setRevision(value => value + 1);
-  }
-
   async function chooseFile() {
     setImporting(true);
     setMessage(null);
@@ -210,7 +212,7 @@ export function WorkspacePage() {
   const tutorialExpenses = ledger.data?.expenses.filter(row => row.settlementMonth === month) ?? [];
   const tutorialExpense = tutorialExpenses.find(row => row.id === lastExpenseId) ?? tutorialExpenses[0];
   const tutorialBanks = ledger.data?.report.entries.filter(row => row.source === "bank") ?? [];
-  const guideBusy = importing || exporting || Boolean(preview || detailId || expenseEditor || backupOpen);
+  const guideBusy = importing || exporting || Boolean(preview || detailId || expenseEditor || backupOpen || mcpOpen);
   let actionHint: string | undefined;
   if (["classify", "expenses", "links", "settlement"].includes(tutorialStep) && (ledger.error || !ledger.data))
     actionHint = ledger.error ? "정산 자료를 다시 불러온 뒤 진행해 주세요." : "정산 자료를 불러오는 중입니다.";
@@ -236,6 +238,7 @@ export function WorkspacePage() {
           version={info?.version}
           tutorialOpen={tutorialOpen}
           onTutorial={toggleTutorial}
+          onMcp={() => setMcpOpen(true)}
         />
       }
     >
@@ -516,6 +519,7 @@ export function WorkspacePage() {
             onBackupCreated={() => setBackedUp(true)}
           />
         )}
+        {mcpOpen && <McpDialog onClose={() => setMcpOpen(false)} />}
       </div>
     </WorkspaceLayout>
   );

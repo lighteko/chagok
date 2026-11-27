@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type {
   Classification,
@@ -23,6 +23,14 @@ const DEFAULT_SETTINGS: SettlementSettings = {
   rounding: "largest-remainder",
 };
 const CATEGORIES = ["수업료", "기타수입", "재료비", "임차료", "인건비", "수수료", "식비", "기타지출"];
+const CLASSIFICATION_PAGE_SIZE = 50;
+
+type PendingClassification = Pick<Classification, "transactionId" | "direction" | "categoryId" | "confirmed"> &
+  Partial<Pick<Classification, "group" | "note">> & { expectedRevision: string | null };
+
+function recordRevision(value: Classification | ClassificationRule | null): string | null {
+  return value && createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
 
 export function migrateLedger(db: DatabaseSync): void {
   db.exec("BEGIN IMMEDIATE");
@@ -76,9 +84,19 @@ export class LedgerRepository {
     if (id !== null && !this.db.prepare("SELECT 1 FROM ledger_categories WHERE id=?").get(id))
       throw new Error("정산 항목을 찾을 수 없습니다.");
   }
+  private categories() {
+    return this.db
+      .prepare("SELECT id,name FROM ledger_categories ORDER BY rowid")
+      .all()
+      .map(row => ({ id: String(row.id), name: String(row.name) }));
+  }
+  private isClosed(month: string): boolean {
+    return Boolean(
+      this.db.prepare("SELECT 1 FROM settlement_snapshots WHERE month=? AND reopened_at IS NULL").get(month),
+    );
+  }
   assertOpen(month: string) {
-    if (this.db.prepare("SELECT 1 FROM settlement_snapshots WHERE month=? AND reopened_at IS NULL").get(month))
-      throw new Error(`${month}은 마감되었습니다. 사유를 기록하고 재개방한 뒤 수정해 주세요.`);
+    if (this.isClosed(month)) throw new Error(`${month}은 마감되었습니다. 사유를 기록하고 재개방한 뒤 수정해 주세요.`);
   }
   private audit(month: string, action: string, entityId: string, before: unknown, after: unknown) {
     this.db
@@ -128,7 +146,7 @@ export class LedgerRepository {
       }
     }
   }
-  private saveClassification(value: Classification) {
+  private saveClassification(value: Classification, auditAction = "거래 분류·보정") {
     const before = this.getClassification(value.transactionId);
     const bank = this.bank(value.transactionId);
     this.assertOpen(before?.settlementMonth ?? String(bank.occurred_at).slice(0, 7));
@@ -155,7 +173,7 @@ export class LedgerRepository {
         "INSERT INTO classifications VALUES (?,?,?) ON CONFLICT(transaction_id) DO UPDATE SET month=excluded.month,data=excluded.data",
       )
       .run(value.transactionId, value.settlementMonth, JSON.stringify(value));
-    this.audit(value.settlementMonth, "거래 분류·보정", value.transactionId, before, value);
+    this.audit(value.settlementMonth, auditAction, value.transactionId, before, value);
     if (before && before.settlementMonth !== value.settlementMonth)
       this.audit(before.settlementMonth, "정산월 이동", value.transactionId, before, value);
     return value;
@@ -189,6 +207,86 @@ export class LedgerRepository {
         );
       }),
     );
+  }
+  classificationQueue(month: string, status: "unclassified" | "pending", page: number) {
+    const from = `FROM bank_transactions t LEFT JOIN classifications c ON c.transaction_id=t.id
+      WHERE COALESCE(c.month, substr(t.occurred_at,1,7))=?
+        AND (c.transaction_id IS NULL OR (? AND json_extract(c.data,'$.confirmed')=0))`;
+    const parameters = [month, status === "pending" ? 1 : 0];
+    const total = Number(this.db.prepare(`SELECT COUNT(*) AS count ${from}`).get(...parameters)!.count);
+    const rows = this.db
+      .prepare(
+        `SELECT t.id,t.occurred_at,t.account_name,t.withdrawal,t.deposit,t.description,t.memo,t.counterparty,t.issues_json,c.data
+        ${from} ORDER BY t.occurred_at,t.id LIMIT ? OFFSET ?`,
+      )
+      .all(...parameters, CLASSIFICATION_PAGE_SIZE, page * CLASSIFICATION_PAGE_SIZE)
+      .map(row => {
+        const classification: Classification | null = typeof row.data === "string" ? JSON.parse(row.data) : null;
+        return {
+          id: String(row.id),
+          occurredAt: String(row.occurred_at),
+          accountName: String(row.account_name),
+          withdrawal: row.withdrawal as number | null,
+          deposit: row.deposit as number | null,
+          description: String(row.description),
+          memo: String(row.memo),
+          counterparty: String(row.counterparty),
+          issues: JSON.parse(String(row.issues_json)) as string[],
+          classification,
+          revision: recordRevision(classification),
+        };
+      });
+    return {
+      month,
+      status,
+      page,
+      pageSize: CLASSIFICATION_PAGE_SIZE,
+      total,
+      closed: this.isClosed(month),
+      categories: this.categories(),
+      rows,
+    };
+  }
+  applyPendingClassifications(month: string, entries: PendingClassification[]): Classification[] {
+    if (new Set(entries.map(row => row.transactionId)).size !== entries.length)
+      throw new Error("같은 거래를 한 번만 지정해 주세요.");
+    return this.atomic(() => {
+      this.assertOpen(month);
+      const changed: Classification[] = [];
+      for (const entry of entries) {
+        const bank = this.bank(entry.transactionId);
+        const previous = this.getClassification(entry.transactionId);
+        const revision = recordRevision(previous);
+        if ((previous?.settlementMonth ?? String(bank.occurred_at).slice(0, 7)) !== month)
+          throw new Error(`${entry.transactionId} 거래는 지정한 정산월에 속하지 않습니다.`);
+        if (previous?.confirmed || revision !== entry.expectedRevision)
+          throw new Error(
+            `${entry.transactionId} 거래의 분류가 변경되었거나 이미 확정되었습니다. 목록을 다시 조회해 주세요.`,
+          );
+        if (
+          (entry.direction === "excluded" || (entry.confirmed && JSON.parse(String(bank.issues_json)).length)) &&
+          !entry.note?.trim()
+        )
+          throw new Error(`${entry.transactionId} 거래의 검토 또는 정산 제외 사유를 입력해 주세요.`);
+        const value = valid.classification({
+          ...entry,
+          group: entry.group ?? previous?.group ?? "other",
+          settlementMonth: month,
+          withdrawal: previous ? previous.withdrawal : bank.withdrawal,
+          deposit: previous ? previous.deposit : bank.deposit,
+          description: previous?.description ?? bank.description,
+          note: entry.note ?? previous?.note ?? "",
+        });
+        if (
+          previous?.direction === value.direction &&
+          previous.categoryId === value.categoryId &&
+          previous.group === value.group
+        )
+          value.ruleId = previous.ruleId;
+        if (recordRevision(value) !== revision) changed.push(this.saveClassification(value, "MCP 거래 분류"));
+      }
+      return changed;
+    });
   }
   saveExpense(input: unknown) {
     const value = valid.expense(input);
@@ -289,15 +387,37 @@ export class LedgerRepository {
       this.audit("global", "정산 항목 저장", id, null, { id, name });
     });
   }
-  saveRule(input: unknown) {
+  classificationRules() {
+    return {
+      categories: this.categories(),
+      rules: this.all<ClassificationRule>("classification_rules").map(rule => ({
+        ...rule,
+        revision: recordRevision(rule),
+      })),
+    };
+  }
+  saveRule(input: unknown, expectedRevision?: string | null) {
     const value = valid.rule(input);
     this.category(value.categoryId);
     return this.atomic(() => {
-      const before = this.all<ClassificationRule>("classification_rules").find(row => row.id === value.id) ?? null;
+      const row = this.db.prepare("SELECT data FROM classification_rules WHERE id=?").get(value.id);
+      const before: ClassificationRule | null = row ? JSON.parse(String(row.data)) : null;
+      if (expectedRevision !== undefined) {
+        const previousRevision = recordRevision(before);
+        if (previousRevision === recordRevision(value)) return value;
+        if (previousRevision !== expectedRevision)
+          throw new Error("분류 규칙이 변경되었거나 같은 ID가 이미 있습니다. 규칙 목록을 다시 조회해 주세요.");
+      }
       this.db
         .prepare("INSERT INTO classification_rules VALUES (?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data")
         .run(value.id, JSON.stringify(value));
-      this.audit("global", "분류 규칙 저장", value.id, before, value);
+      this.audit(
+        "global",
+        expectedRevision === undefined ? "분류 규칙 저장" : "MCP 분류 규칙 저장",
+        value.id,
+        before,
+        value,
+      );
       return value;
     });
   }
@@ -314,20 +434,30 @@ export class LedgerRepository {
     const month = valid.month(input);
     return this.atomic(() => this.suggestRulesInTransaction(month));
   }
+  applyRulesFromMcp(month: string, confirm: boolean) {
+    return this.atomic(() => this.classifyWithRules(month, { confirm }));
+  }
   /** 가져오기와 같은 SQLite 트랜잭션 안에서 호출합니다. */
   suggestRulesInTransaction(month: string): number {
+    return this.classifyWithRules(month).suggested;
+  }
+  private classifyWithRules(month: string, mcp?: { confirm: boolean }) {
     this.assertOpen(month);
     const rules = this.all<ClassificationRule>("classification_rules").filter(row => row.enabled);
     const banks = this.db
       .prepare("SELECT * FROM bank_transactions WHERE substr(occurred_at,1,7)=? ORDER BY occurred_at,id")
       .all(month);
-    let count = 0;
+    let suggested = 0;
+    let confirmed = 0;
     for (const bank of banks) {
-      if (this.getClassification(String(bank.id))) continue;
+      const previous = this.getClassification(String(bank.id));
+      if (previous && (!mcp?.confirm || previous.confirmed || !previous.ruleId || previous.settlementMonth !== month))
+        continue;
       const rule = rules.find(rule =>
         String(bank[rule.field]).toLocaleLowerCase().includes(rule.contains.toLocaleLowerCase()),
       );
       if (!rule) continue;
+      const reason = `${rule.name} (${rule.field}에 ‘${rule.contains}’ 포함)`;
       const value = valid.classification({
         transactionId: bank.id,
         direction: rule.direction,
@@ -338,13 +468,29 @@ export class LedgerRepository {
         deposit: bank.deposit,
         description: bank.description,
         confirmed: false,
-        note: `규칙 제안: ${rule.name} (${rule.field}에 ‘${rule.contains}’ 포함)`,
+        note: `규칙 제안: ${reason}`,
       });
       value.ruleId = rule.id;
-      this.saveClassification(value);
-      count++;
+      const canConfirm =
+        mcp?.confirm &&
+        JSON.parse(String(bank.issues_json)).length === 0 &&
+        value.withdrawal !== null &&
+        value.deposit !== null &&
+        (value.direction !== "income" || (value.withdrawal === 0 && value.deposit > 0)) &&
+        (value.direction !== "expense" || (value.deposit === 0 && value.withdrawal > 0));
+      // Only automatically confirm an untouched draft from the same enabled rule.
+      if (previous && (!canConfirm || recordRevision(previous) !== recordRevision(value))) continue;
+      if (canConfirm) {
+        const confirmedValue = valid.classification({ ...value, confirmed: true, note: `규칙 적용: ${reason}` });
+        confirmedValue.ruleId = rule.id;
+        this.saveClassification(confirmedValue, "MCP 규칙 확정");
+        confirmed++;
+      } else {
+        this.saveClassification(value, mcp ? "MCP 규칙 제안" : undefined);
+        suggested++;
+      }
     }
-    return count;
+    return { suggested, confirmed };
   }
   saveSettings(inputMonth: unknown, input: unknown) {
     const month = valid.month(inputMonth),
@@ -378,10 +524,7 @@ export class LedgerRepository {
   }
   workspace(input: unknown): LedgerWorkspace {
     const month = valid.month(input);
-    const categories = this.db
-      .prepare("SELECT id,name FROM ledger_categories ORDER BY rowid")
-      .all()
-      .map(row => ({ id: String(row.id), name: String(row.name) }));
+    const categories = this.categories();
     const classifications = this.all<Classification>("classifications"),
       expenses = this.all<Expense>("expenses"),
       links = this.links();

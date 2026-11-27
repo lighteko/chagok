@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Calculator, Receipt, BookOpen } from "lucide-react";
+import { ArrowLeftRight, Calculator, Receipt, BookOpen, Plug } from "lucide-react";
 import appIcon from "@/domains/dashboard/assets/chagok-icon.svg";
 import {
   Sidebar,
@@ -26,12 +26,14 @@ export function AppSidebar({
   version,
   tutorialOpen,
   onTutorial,
+  onMcp,
 }: {
   view: WorkspaceView;
   onSelect: (view: WorkspaceView) => void;
   version?: string;
   tutorialOpen: boolean;
   onTutorial: () => void;
+  onMcp: () => void;
 }) {
   return (
     <Sidebar collapsible="icon">
@@ -77,6 +79,16 @@ export function AppSidebar({
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              tooltip="MCP 연결"
+              aria-label="MCP 연결"
+              onClick={onMcp}
+            >
+              <Plug aria-hidden="true" />
+              <span>MCP 연결</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="사용 안내"

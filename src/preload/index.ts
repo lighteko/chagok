@@ -3,6 +3,15 @@ import { IPC_CHANNELS, type DesktopApi } from "@/shared/desktop/contracts";
 
 const api: DesktopApi = {
   getAppInfo: () => ipcRenderer.invoke(IPC_CHANNELS.appInfo),
+  getMcpStatus: () => ipcRenderer.invoke(IPC_CHANNELS.mcpStatus),
+  setMcpEnabled: (enabled, allowClassification) =>
+    ipcRenderer.invoke(IPC_CHANNELS.mcpSetEnabled, enabled, allowClassification),
+  copyMcpToken: () => ipcRenderer.invoke(IPC_CHANNELS.mcpCopyToken),
+  onMcpLedgerChanged: listener => {
+    const notify = () => listener();
+    ipcRenderer.on(IPC_CHANNELS.mcpLedgerChanged, notify);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.mcpLedgerChanged, notify);
+  },
   getWorkspacePreferences: legacy => ipcRenderer.invoke(IPC_CHANNELS.preferencesGet, legacy),
   saveWorkspacePreferences: preferences => ipcRenderer.invoke(IPC_CHANNELS.preferencesSave, preferences),
   previewTransactionImport: () => ipcRenderer.invoke(IPC_CHANNELS.transactionsPreview),

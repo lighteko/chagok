@@ -23,6 +23,10 @@ import type {
 
 export const IPC_CHANNELS = {
   appInfo: "app:info",
+  mcpStatus: "mcp:status",
+  mcpSetEnabled: "mcp:set-enabled",
+  mcpCopyToken: "mcp:copy-token",
+  mcpLedgerChanged: "mcp:ledger-changed",
   preferencesGet: "preferences:get",
   preferencesSave: "preferences:save",
   transactionsPreview: "transactions:preview",
@@ -60,8 +64,17 @@ export interface AppInfo {
   platform: string;
 }
 
+export interface McpStatus {
+  url: string | null;
+  canClassify: boolean;
+}
+
 export interface DesktopApi {
   getAppInfo: () => Promise<AppInfo>;
+  getMcpStatus: () => Promise<McpStatus>;
+  setMcpEnabled: (enabled: boolean, allowClassification?: boolean) => Promise<McpStatus>;
+  copyMcpToken: () => Promise<void>;
+  onMcpLedgerChanged: (listener: () => void) => () => void;
   getWorkspacePreferences: (legacy?: WorkspacePreferences) => Promise<WorkspacePreferences>;
   saveWorkspacePreferences: (preferences: WorkspacePreferences) => Promise<WorkspacePreferences>;
   previewTransactionImport: () => Promise<TransactionImportPreview | null>;
