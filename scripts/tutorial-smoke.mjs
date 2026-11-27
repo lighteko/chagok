@@ -154,6 +154,8 @@ try {
   await step(6);
   await expect(guide.getByRole("status")).toContainText("85,000원");
   await guide.getByRole("button", { name: "배분 설정 열기", exact: true }).click();
+  await expect(page.getByLabel("대상 1", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("대상 2", { exact: true })).toHaveValue("");
   await page.getByLabel("대상 1", { exact: true }).fill("담당자 A");
   await page.getByLabel("대상 2", { exact: true }).fill("담당자 B");
   const percentages = page.getByRole("dialog").getByRole("spinbutton");
@@ -161,6 +163,7 @@ try {
   await percentages.nth(1).fill("25");
   await page.getByRole("button", { name: "이번 달 배분 설정 저장", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByText("담당자 A · 75%", { exact: true })).toBeVisible();
   await next();
   await step(7);
   await guide.getByRole("button", { name: "마감·출력 위치 보기", exact: true }).click();

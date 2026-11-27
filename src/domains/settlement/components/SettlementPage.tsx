@@ -219,24 +219,34 @@ export function SettlementPage({
         <CardHeader>
           <CardTitle>배분액</CardTitle>
           <CardDescription>
-            {report.settings.rounding === "largest-remainder"
-              ? "원 미만은 버린 뒤 소수 잔여가 큰 대상부터 1원씩 배분합니다. 동률은 대상 순서입니다."
-              : "원 미만은 버리고 남는 금액을 마지막 대상에게 배분합니다."}{" "}
-            음수 잔액은 손실 배분액입니다.
+            {report.allocations.length ? (
+              <>
+                {report.settings.rounding === "largest-remainder"
+                  ? "원 미만은 버린 뒤 소수 잔여가 큰 대상부터 1원씩 배분합니다. 동률은 대상 순서입니다."
+                  : "원 미만은 버리고 남는 금액을 마지막 대상에게 배분합니다."}{" "}
+                음수 잔액은 손실 배분액입니다.
+              </>
+            ) : ledger.closed ? (
+              "이 마감본에는 저장된 배분 설정이 없습니다."
+            ) : (
+              "배분 설정에서 대상 이름과 비율을 입력해 주세요."
+            )}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-8">
-          {report.allocations.map(row => (
-            <div key={row.id}>
-              <p className="text-sm text-muted-foreground">
-                {row.recipient} · {row.basisPoints / 100}%
-              </p>
-              <p className="text-2xl font-semibold tabular-nums tracking-tight text-primary">
-                {formatMoney(row.amount)}원
-              </p>
-            </div>
-          ))}
-        </CardContent>
+        {report.allocations.length > 0 && (
+          <CardContent className="flex flex-wrap gap-8">
+            {report.allocations.map(row => (
+              <div key={row.id}>
+                <p className="text-sm text-muted-foreground">
+                  {row.recipient} · {row.basisPoints / 100}%
+                </p>
+                <p className="text-2xl font-semibold tabular-nums tracking-tight text-primary">
+                  {formatMoney(row.amount)}원
+                </p>
+              </div>
+            ))}
+          </CardContent>
+        )}
       </Card>
       <Tabs
         value={tab}
@@ -294,7 +304,8 @@ export function SettlementPage({
                       {new Date(row.closedAt).toLocaleString()} · 잔액 {formatMoney(row.report.net)}원
                     </p>
                     <p className="text-sm">
-                      {row.report.allocations.map(a => `${a.recipient} ${formatMoney(a.amount)}원`).join(" · ")}
+                      {row.report.allocations.map(a => `${a.recipient} ${formatMoney(a.amount)}원`).join(" · ") ||
+                        "배분 설정 없음"}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {row.reopenedAt
@@ -580,7 +591,14 @@ function AllocationDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [settings, setSettings] = useState<SettlementSettings>(() => structuredClone(ledger.report.settings)),
+  const [settings, setSettings] = useState<SettlementSettings>(() => {
+      const saved = ledger.report.settings;
+      if (ledger.closed || saved.allocations.length) return saved;
+      return {
+        ...saved,
+        allocations: [8000, 2000].map(basisPoints => ({ id: crypto.randomUUID(), recipient: "", basisPoints })),
+      };
+    }),
     [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null);
   async function save() {
@@ -607,7 +625,9 @@ function AllocationDialog({
         <DialogHeader>
           <DialogTitle>배분 설정 · {ledger.report.month}</DialogTitle>
           <DialogDescription>
-            이번 달의 대상과 비율을 설정합니다. 합계는 100%이며 소수점 둘째 자리까지 지원합니다.
+            {ledger.closed && !settings.allocations.length
+              ? "이 마감본에는 저장된 배분 설정이 없습니다."
+              : "이번 달의 대상 이름과 비율을 입력하세요. 비율 합계는 100%이며 소수점 둘째 자리까지 지원합니다."}
           </DialogDescription>
         </DialogHeader>
         <form

@@ -8,6 +8,7 @@ function safe(value: number): number {
 /** 정수 원 단위. 음수 잔액도 부호를 유지하며 배분 합계가 잔액과 정확하게 일치합니다. */
 export function allocate(net: number, settings: SettlementSettings): (Allocation & { amount: number })[] {
   safe(net);
+  if (!settings.allocations.length) return [];
   const magnitude = BigInt(Math.abs(net));
   const shares = settings.allocations.map((rule, index) => {
     const product = magnitude * BigInt(rule.basisPoints);

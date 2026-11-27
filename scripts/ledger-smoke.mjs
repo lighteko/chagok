@@ -109,8 +109,25 @@ try {
   assert.equal(ledger.report.expenses.card, 90000);
   assert.equal(ledger.report.net, 700001);
   assert.equal(ledger.report.pending, 0);
+  assert.deepEqual(ledger.report.settings.allocations, []);
+  assert.deepEqual(ledger.report.allocations, []);
+  const allocationSettings = {
+    allocations: [
+      { id: "a", recipient: "대상 A", basisPoints: 8000 },
+      { id: "b", recipient: "대상 B", basisPoints: 2000 },
+    ],
+    rounding: "largest-remainder",
+  };
+  await assert.rejects(
+    api("saveSettlementSettings", "2026-09", {
+      ...allocationSettings,
+      allocations: [{ id: "blank", recipient: " ", basisPoints: 10000 }],
+    }),
+    /배분 대상/,
+  );
+  await api("saveSettlementSettings", "2026-09", allocationSettings);
   assert.deepEqual(
-    ledger.report.allocations.map(row => row.amount),
+    (await api("getLedger", "2026-09")).report.allocations.map(row => row.amount),
     [560001, 140000],
   );
   assert.equal((await api("getLedger", "2026-10")).report.totalExpenses, 10000, "aggregate bill residual only");
@@ -399,6 +416,11 @@ try {
   await classify(decemberRow, "excluded", null, { note: "정산 대상이 아닌 출금임을 확인" });
   assert.equal((await api("getLedger", "2026-12")).report.totalExpenses, 0);
   assert.equal((await api("getLedger", "2026-12")).report.pending, 0);
+  const unconfiguredPath = join(profile, "unconfigured.xlsx");
+  await saveTo(unconfiguredPath);
+  await api("exportSettlement", "2026-12");
+  const unconfiguredSheet = (await readXlsx(unconfiguredPath))[0].data;
+  assert.ok(unconfiguredSheet.some(row => row.includes("배분 설정 없음")));
   await page.getByRole("button", { name: "백업·복원", exact: true }).click();
   await saveTo(join(profile, "ui-backup.chagok"));
   await page.getByRole("button", { name: "전체 장부 백업", exact: true }).click();
@@ -420,6 +442,7 @@ try {
         amount,
         description: `${group} 사용 ${i + 1}`,
       });
+  await api("saveSettlementSettings", "2026-07", allocationSettings);
   const expanded = await api("getLedger", "2026-07");
   assert.equal(expanded.report.totalExpenses, 163);
   assert.deepEqual(

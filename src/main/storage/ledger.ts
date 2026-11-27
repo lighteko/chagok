@@ -16,10 +16,7 @@ import { calculateSettlement } from "@/domains/settlement/calculation/calculateS
 import * as valid from "./ledgerValidation";
 
 const DEFAULT_SETTINGS: SettlementSettings = {
-  allocations: [
-    { id: "recipient-1", recipient: "남주원장님", basisPoints: 8000 },
-    { id: "recipient-2", recipient: "엄마론", basisPoints: 2000 },
-  ],
+  allocations: [],
   rounding: "largest-remainder",
 };
 const CATEGORIES = ["수업료", "기타수입", "재료비", "임차료", "인건비", "수수료", "식비", "기타지출"];

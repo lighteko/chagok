@@ -124,9 +124,11 @@ export function buildSettlementWorkbook(report: SettlementReport, closed: boolea
     noteRow + 1,
     1,
     text(
-      report.settings.rounding === "largest-remainder"
-        ? "배분: 원 미만 절사 후 소수 잔여가 큰 순서로 1원씩 배분. 동률은 대상 순서. 음수는 손실 배분."
-        : "배분: 원 미만 절사 후 잔여 금액을 마지막 대상에 배분. 음수는 손실 배분.",
+      report.allocations.length === 0
+        ? "배분 설정 없음"
+        : report.settings.rounding === "largest-remainder"
+          ? "배분: 원 미만 절사 후 소수 잔여가 큰 순서로 1원씩 배분. 동률은 대상 순서. 음수는 손실 배분."
+          : "배분: 원 미만 절사 후 잔여 금액을 마지막 대상에 배분. 음수는 손실 배분.",
       { columnSpan: 14, height: 30 },
     ),
   );
