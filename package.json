@@ -1,7 +1,7 @@
 {
   "name": "chagok",
   "productName": "차곡",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "차곡 — 수입과 지출을 모아 월별 정산을 만드는 로컬 데스크톱 앱",
   "author": "lighteko",
   "license": "UNLICENSED",
@@ -28,6 +28,7 @@
     "test:ledger": "pnpm build && node scripts/ledger-smoke.mjs",
     "test:tutorial": "pnpm build && node scripts/tutorial-smoke.mjs",
     "test:mcp": "pnpm build && node scripts/mcp-smoke.mjs",
+    "test:update": "pnpm build && electron-builder --win nsis --publish never --config.directories.output=test-results/update-package && node scripts/update-smoke.mjs test-results/update-package/win-unpacked/chagok.exe",
     "prepare": "husky"
   },
   "dependencies": {
@@ -35,6 +36,7 @@
     "@modelcontextprotocol/server": "2.4.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
+    "electron-updater": "6.8.11",
     "lucide-react": "^1.71.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",

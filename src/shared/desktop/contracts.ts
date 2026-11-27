@@ -23,6 +23,10 @@ import type {
 
 export const IPC_CHANNELS = {
   appInfo: "app:info",
+  updateStatus: "update:status",
+  updateCheck: "update:check",
+  updateInstall: "update:install",
+  updateChanged: "update:changed",
   mcpStatus: "mcp:status",
   mcpSetEnabled: "mcp:set-enabled",
   mcpCopyToken: "mcp:copy-token",
@@ -64,6 +68,12 @@ export interface AppInfo {
   platform: string;
 }
 
+export type AppUpdateStatus =
+  | { phase: "unsupported" | "idle" | "checking" | "current" }
+  | { phase: "downloading"; version: string; percent: number }
+  | { phase: "ready" | "installing"; version: string }
+  | { phase: "error"; message: string };
+
 export interface McpStatus {
   url: string | null;
   canClassify: boolean;
@@ -71,6 +81,10 @@ export interface McpStatus {
 
 export interface DesktopApi {
   getAppInfo: () => Promise<AppInfo>;
+  getUpdateStatus: () => Promise<AppUpdateStatus>;
+  checkForUpdate: () => Promise<void>;
+  installUpdate: () => Promise<void>;
+  onUpdateStatus: (listener: (status: AppUpdateStatus) => void) => () => void;
   getMcpStatus: () => Promise<McpStatus>;
   setMcpEnabled: (enabled: boolean, allowClassification?: boolean) => Promise<McpStatus>;
   copyMcpToken: () => Promise<void>;

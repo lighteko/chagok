@@ -1,4 +1,6 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
+import { autoUpdater } from "electron-updater";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { IPC_CHANNELS, type AppInfo } from "@/shared/desktop/contracts";
@@ -16,6 +18,7 @@ import {
 } from "./backups/backupService";
 import { saveSettlementExport } from "./exports/settlementExport";
 import { LocalMcp } from "./mcp/localMcp";
+import { AppUpdates } from "./updates/appUpdates";
 import appIcon from "../../build/icons/icon.png?asset";
 
 const rendererFile = join(__dirname, "../renderer/index.html");
@@ -28,16 +31,18 @@ const mcp = new LocalMcp(
     if (restoring || !database) throw new Error("장부를 열 수 없습니다. 차곡 상태를 확인해 주세요.");
     return database;
   },
-  () => {
-    const contents = mainWindow?.webContents;
-    if (!contents || contents.isDestroyed()) return;
-    try {
-      contents.send(IPC_CHANNELS.mcpLedgerChanged);
-    } catch (error) {
-      console.warn("MCP 변경을 앱 화면에 알리지 못했습니다.", error);
-    }
-  },
+  () => notifyWindow(IPC_CHANNELS.mcpLedgerChanged),
 );
+
+function notifyWindow(channel: string, ...args: unknown[]): void {
+  const contents = mainWindow?.webContents;
+  if (!contents || contents.isDestroyed()) return;
+  try {
+    contents.send(channel, ...args);
+  } catch (error) {
+    console.warn("앱 화면에 변경을 알리지 못했습니다.", error);
+  }
+}
 
 function assertTrustedCaller(event: IpcMainInvokeEvent): void {
   if (restoring) throw new Error("백업 복원 중입니다. 잠시 후 다시 시도해 주세요.");
@@ -112,6 +117,11 @@ if (!app.requestSingleInstanceLock()) {
       app.setAppUserModelId("com.lighteko.chagok");
       await recoverInterruptedRestore(app.getPath("userData"));
       database = new AppDatabase(join(app.getPath("userData"), "storage"));
+      const updateSupported =
+        process.platform === "win32" && app.isPackaged && existsSync(join(process.resourcesPath, "app-update.yml"));
+      const updates = new AppUpdates(updateSupported ? autoUpdater : null, status =>
+        notifyWindow(IPC_CHANNELS.updateChanged, status),
+      );
       let imports = new TransactionImportService(database.transactions);
       session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
       session.defaultSession.setPermissionCheckHandler(() => false);
@@ -131,6 +141,18 @@ if (!app.requestSingleInstanceLock()) {
       ipcMain.handle(IPC_CHANNELS.appInfo, (event): AppInfo => {
         assertTrustedCaller(event);
         return { name: "차곡", version: app.getVersion(), platform: process.platform };
+      });
+      ipcMain.handle(IPC_CHANNELS.updateStatus, event => {
+        assertTrustedCaller(event);
+        return updates.getStatus();
+      });
+      ipcMain.handle(IPC_CHANNELS.updateCheck, event => {
+        assertTrustedCaller(event);
+        void updates.check();
+      });
+      ipcMain.handle(IPC_CHANNELS.updateInstall, event => {
+        assertTrustedCaller(event);
+        updates.install();
       });
       ipcMain.handle(IPC_CHANNELS.mcpStatus, event => {
         assertTrustedCaller(event);
@@ -342,6 +364,8 @@ if (!app.requestSingleInstanceLock()) {
         }
       });
       createWindow();
+      updates.start();
+      app.once("will-quit", () => updates.stop());
       app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
       });

@@ -1,8 +1,16 @@
 import { contextBridge, ipcRenderer } from "electron";
-import { IPC_CHANNELS, type DesktopApi } from "@/shared/desktop/contracts";
+import { IPC_CHANNELS, type AppUpdateStatus, type DesktopApi } from "@/shared/desktop/contracts";
 
 const api: DesktopApi = {
   getAppInfo: () => ipcRenderer.invoke(IPC_CHANNELS.appInfo),
+  getUpdateStatus: () => ipcRenderer.invoke(IPC_CHANNELS.updateStatus),
+  checkForUpdate: () => ipcRenderer.invoke(IPC_CHANNELS.updateCheck),
+  installUpdate: () => ipcRenderer.invoke(IPC_CHANNELS.updateInstall),
+  onUpdateStatus: listener => {
+    const notify = (_event: Electron.IpcRendererEvent, status: AppUpdateStatus) => listener(status);
+    ipcRenderer.on(IPC_CHANNELS.updateChanged, notify);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.updateChanged, notify);
+  },
   getMcpStatus: () => ipcRenderer.invoke(IPC_CHANNELS.mcpStatus),
   setMcpEnabled: (enabled, allowClassification) =>
     ipcRenderer.invoke(IPC_CHANNELS.mcpSetEnabled, enabled, allowClassification),

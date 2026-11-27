@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Calculator, Receipt, BookOpen, Plug } from "lucide-react";
+import { ArrowLeftRight, Calculator, Receipt, BookOpen, Plug, Download } from "lucide-react";
 import appIcon from "@/domains/dashboard/assets/chagok-icon.svg";
 import {
   Sidebar,
@@ -11,6 +11,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuBadge,
 } from "@/atomics/atoms/sidebar";
 import type { WorkspaceView } from "@/shared/desktop/preferences";
 
@@ -27,6 +28,8 @@ export function AppSidebar({
   tutorialOpen,
   onTutorial,
   onMcp,
+  onUpdate,
+  updateReady,
 }: {
   view: WorkspaceView;
   onSelect: (view: WorkspaceView) => void;
@@ -34,6 +37,8 @@ export function AppSidebar({
   tutorialOpen: boolean;
   onTutorial: () => void;
   onMcp: () => void;
+  onUpdate?: () => void;
+  updateReady: boolean;
 }) {
   return (
     <Sidebar collapsible="icon">
@@ -79,6 +84,18 @@ export function AppSidebar({
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+          {onUpdate && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                tooltip={updateReady ? "새 업데이트 준비됨" : "업데이트"}
+                onClick={onUpdate}
+              >
+                <Download aria-hidden="true" />
+                <span>업데이트</span>
+              </SidebarMenuButton>
+              {updateReady && <SidebarMenuBadge className="text-primary">새 버전</SidebarMenuBadge>}
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="MCP 연결"

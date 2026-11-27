@@ -92,6 +92,12 @@
 
 거래내역 엑셀은 원본 거래 출력용입니다. 정산 결과는 월별 정산의 **정산표 엑셀 출력**, 복원 가능한 전체 자료는 **백업·복원**을 사용합니다.
 
+## Windows 자동 업데이트
+
+자동 업데이트가 포함된 Windows 설치본은 실행 후와 실행 중에 [GitHub 최신 릴리스](https://github.com/lighteko/chagok/releases/latest)를 확인하고 새 안정 버전을 자동으로 내려받습니다. 설치 준비가 되면 앱을 종료할 때 설치하거나, 왼쪽 아래 **업데이트 → 재시작 및 설치**를 눌러 바로 적용할 수 있습니다. 같은 메뉴에서 업데이트를 직접 확인할 수도 있습니다.
+
+0.2.0처럼 자동 업데이트가 도입되기 전에 설치한 버전은 자동 업데이트가 포함된 설치 파일을 한 번 직접 실행해야 합니다. Windows 릴리스에는 같은 NSIS 빌드에서 생성된 설치 파일, `latest.yml`, `.blockmap`을 함께 올립니다.
+
 ## MCP 연결
 
 1. 차곡 왼쪽 아래 **MCP 연결 → 연결 켜기**를 누릅니다.
@@ -156,6 +162,7 @@ src/
   main/backups/                전체 백업·복원·복원 중단 복구
   main/exports/                원본 거래·정산표 엑셀 저장
   main/mcp/                    로컬 MCP 연결과 장부 조회 도구
+  main/updates/                Windows 업데이트 확인·다운로드·설치
   preload/                     제한된 IPC 브리지
 ```
 
@@ -184,6 +191,7 @@ pnpm test:imports   # XLSX 가져오기·중복·기간·롤백·검색·복원�
 pnpm test:ledger    # 정산 계산·연결·영수증·차트·마감·정산표·백업과 실제 UI 검증
 pnpm test:tutorial  # 사용 안내 8단계를 실제 거래 입력부터 백업까지 따라가며 검증
 pnpm test:mcp       # MCP 인증, 거래·정산 조회, 규칙과 자동 분류 검증
+pnpm test:update    # Windows 패키지의 자동 업데이트와 파일 무결성 검증
 pnpm build:dir      # Windows 실행 폴더
 pnpm build:win      # Windows NSIS 설치 파일
 ```

@@ -7,6 +7,10 @@ files:
   - package.json
   - src/shared/assets/fonts/OFL.txt
 asar: true
+publish:
+  provider: github
+  owner: lighteko
+  repo: chagok
 win:
   icon: build/icons/icon.ico
   executableName: chagok
