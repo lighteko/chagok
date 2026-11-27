@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/atomics/atoms/button";
 import { Input } from "@/atomics/atoms/input";
-import { Label } from "@/atomics/atoms/label";
+import { Field, FieldGroup, FieldLabel } from "@/atomics/atoms/field";
 import { Textarea } from "@/atomics/atoms/textarea";
 import { NativeSelect, NativeSelectOption } from "@/atomics/atoms/native-select";
 import {
@@ -82,9 +82,9 @@ export function ExpenseEditor({
           }}
           className="grid gap-4"
         >
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="expense-date">사용일</Label>
+          <FieldGroup className="grid grid-cols-2 gap-4">
+            <Field>
+              <FieldLabel htmlFor="expense-date">사용일</FieldLabel>
               <Input
                 id="expense-date"
                 type="date"
@@ -92,9 +92,9 @@ export function ExpenseEditor({
                 value={form.occurredOn}
                 onChange={e => field("occurredOn", e.target.value)}
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="expense-month">정산월</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="expense-month">정산월</FieldLabel>
               <Input
                 id="expense-month"
                 type="month"
@@ -102,10 +102,10 @@ export function ExpenseEditor({
                 value={form.settlementMonth}
                 onChange={e => field("settlementMonth", e.target.value)}
               />
-            </div>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="expense-description">내용</Label>
+            </Field>
+          </FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="expense-description">내용</FieldLabel>
             <Input
               id="expense-description"
               required
@@ -113,10 +113,10 @@ export function ExpenseEditor({
               value={form.description}
               onChange={e => field("description", e.target.value)}
             />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="expense-amount">금액 (원)</Label>
+          </Field>
+          <FieldGroup className="grid grid-cols-2 gap-4">
+            <Field>
+              <FieldLabel htmlFor="expense-amount">금액 (원)</FieldLabel>
               <Input
                 id="expense-amount"
                 type="number"
@@ -126,9 +126,9 @@ export function ExpenseEditor({
                 value={form.amount || ""}
                 onChange={e => field("amount", Number(e.target.value))}
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="expense-group">지출 구분</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="expense-group">지출 구분</FieldLabel>
               <NativeSelect
                 id="expense-group"
                 value={form.group}
@@ -138,10 +138,10 @@ export function ExpenseEditor({
                 <NativeSelectOption value="card">카드</NativeSelectOption>
                 <NativeSelectOption value="other">기타</NativeSelectOption>
               </NativeSelect>
-            </div>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="expense-category">정산 항목</Label>
+            </Field>
+          </FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="expense-category">정산 항목</FieldLabel>
             <NativeSelect
               id="expense-category"
               value={form.categoryId}
@@ -156,10 +156,10 @@ export function ExpenseEditor({
                 </NativeSelectOption>
               ))}
             </NativeSelect>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="expense-payer">결제자</Label>
+          </Field>
+          <FieldGroup className="grid grid-cols-2 gap-4">
+            <Field>
+              <FieldLabel htmlFor="expense-payer">결제자</FieldLabel>
               <Input
                 id="expense-payer"
                 required
@@ -167,9 +167,9 @@ export function ExpenseEditor({
                 value={form.paidBy}
                 onChange={e => field("paidBy", e.target.value)}
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="expense-method">결제수단</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="expense-method">결제수단</FieldLabel>
               <Input
                 id="expense-method"
                 required
@@ -178,17 +178,17 @@ export function ExpenseEditor({
                 value={form.paymentMethod}
                 onChange={e => field("paymentMethod", e.target.value)}
               />
-            </div>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="expense-note">메모</Label>
+            </Field>
+          </FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="expense-note">메모</FieldLabel>
             <Textarea
               id="expense-note"
               maxLength={2000}
               value={form.note}
               onChange={e => field("note", e.target.value)}
             />
-          </div>
+          </Field>
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>

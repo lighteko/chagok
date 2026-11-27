@@ -12,7 +12,7 @@ import {
   DialogFooter,
 } from "@/atomics/atoms/dialog";
 import { Input } from "@/atomics/atoms/input";
-import { Label } from "@/atomics/atoms/label";
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/atomics/atoms/field";
 import { NativeSelect, NativeSelectOption } from "@/atomics/atoms/native-select";
 import { Table, TableHeader, TableHead, TableRow, TableBody, TableCell } from "@/atomics/atoms/table";
 import type { TransactionImportPreview, TransactionImportResult } from "@/shared/desktop/transactions";
@@ -75,23 +75,27 @@ export function TransactionImportDialog({
           <DialogDescription>{preview.fileName} · 저장 전에 계좌와 가져올 월을 확인해 주세요.</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="import-account">계좌 이름</Label>
+          <FieldGroup className="grid gap-4 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="import-account">계좌 이름</FieldLabel>
               <Input
                 id="import-account"
+                aria-describedby="import-account-help"
                 placeholder="예: 운영 계좌"
                 value={accountName}
                 maxLength={80}
                 disabled={saving}
                 onChange={event => setAccountName(event.target.value)}
               />
-              <p className="text-xs text-muted-foreground">
+              <FieldDescription
+                id="import-account-help"
+                className="text-xs"
+              >
                 같은 계좌는 항상 같은 이름을 사용하고, 다른 계좌는 구분해 주세요.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="import-sheet">가져올 시트</Label>
+              </FieldDescription>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="import-sheet">가져올 시트</FieldLabel>
               <NativeSelect
                 id="import-sheet"
                 value={sheetId}
@@ -117,33 +121,35 @@ export function TransactionImportDialog({
                   </NativeSelectOption>
                 ))}
               </NativeSelect>
-            </div>
-          </div>
-          <fieldset
-            disabled={saving}
-            className="space-y-2"
-          >
-            <legend className="mb-2 text-sm font-medium">가져올 월</legend>
-            <div className="flex flex-wrap gap-4">
+            </Field>
+          </FieldGroup>
+          <FieldSet disabled={saving}>
+            <FieldLegend variant="label">가져올 월</FieldLegend>
+            <FieldGroup className="flex-row flex-wrap gap-4">
               {sheet.months.map(value => (
-                <Label
+                <Field
                   key={value.month}
-                  className="flex items-center gap-2"
+                  orientation="horizontal"
+                  className="w-fit"
                 >
                   <Checkbox
+                    id={`import-month-${value.month}`}
                     checked={months.includes(value.month)}
+                    disabled={saving}
                     onCheckedChange={checked =>
                       setMonths(previous =>
                         checked ? [...previous, value.month] : previous.filter(month => month !== value.month),
                       )
                     }
                   />
-                  {value.month}
-                  <span className="text-xs text-muted-foreground">{value.count}건</span>
-                </Label>
+                  <FieldLabel htmlFor={`import-month-${value.month}`}>
+                    {value.month}
+                    <span className="text-xs text-muted-foreground">{value.count}건</span>
+                  </FieldLabel>
+                </Field>
               ))}
-            </div>
-          </fieldset>
+            </FieldGroup>
+          </FieldSet>
           {(sheet.warnings.length > 0 || sheet.rejectedCount > 0 || preview.skippedSheets.length > 0) && (
             <Alert>
               <AlertTitle>확인할 내용</AlertTitle>

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/atomics/atoms/button";
 import { Input } from "@/atomics/atoms/input";
-import { Label } from "@/atomics/atoms/label";
+import { Field, FieldLabel } from "@/atomics/atoms/field";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/atomics/atoms/item";
 import { Checkbox } from "@/atomics/atoms/checkbox";
 import { NativeSelect, NativeSelectOption } from "@/atomics/atoms/native-select";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/atomics/atoms/card";
@@ -104,14 +105,14 @@ export function BulkClassificationForm({
         value={form.note}
         onChange={e => setForm({ ...form, note: e.target.value })}
       />
-      <div className="flex items-center gap-2">
+      <Field orientation="horizontal">
         <Checkbox
           id="bulk-confirm"
           checked={form.confirmed}
           onCheckedChange={checked => setForm({ ...form, confirmed: Boolean(checked) })}
         />
-        <Label htmlFor="bulk-confirm">선택 거래의 금액과 분류를 모두 확인했습니다</Label>
-      </div>
+        <FieldLabel htmlFor="bulk-confirm">선택 거래의 금액과 분류를 모두 확인했습니다</FieldLabel>
+      </Field>
       <p className="text-xs text-muted-foreground">
         누락 금액은 개별 거래에서 보정해 주세요. 한 건이라도 검증에 실패하면 전체 변경을 취소합니다.
       </p>
@@ -202,49 +203,54 @@ export function ClassificationTools({
           >
             이번 달 미분류에 규칙 제안
           </Button>
-          {ledger.rules.map(row => (
-            <div
-              key={row.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3"
-            >
-              <div>
-                <p className="font-medium">
-                  {row.name} {row.enabled ? "" : "(중지)"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {row.field}에 ‘{row.contains}’ 포함 → {row.direction} ·{" "}
-                  {ledger.categories.find(c => c.id === row.categoryId)?.name ?? "항목 없음"}
-                </p>
-              </div>
-              <div className="flex gap-1">
-                <Button
+          {ledger.rules.length > 0 && (
+            <ItemGroup>
+              {ledger.rules.map(row => (
+                <Item
+                  key={row.id}
+                  role="listitem"
                   variant="outline"
-                  size="sm"
-                  onClick={() => setRule(row)}
                 >
-                  편집
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(() => window.chagok.saveClassificationRule({ ...row, enabled: !row.enabled }))
-                  }
-                >
-                  {row.enabled ? "중지" : "사용"}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => void run(() => window.chagok.deleteClassificationRule(row.id))}
-                >
-                  삭제
-                </Button>
-              </div>
-            </div>
-          ))}
+                  <ItemContent>
+                    <ItemTitle className="line-clamp-none">
+                      {row.name} {row.enabled ? "" : "(중지)"}
+                    </ItemTitle>
+                    <ItemDescription className="line-clamp-none text-xs">
+                      {row.field}에 ‘{row.contains}’ 포함 → {row.direction} ·{" "}
+                      {ledger.categories.find(c => c.id === row.categoryId)?.name ?? "항목 없음"}
+                    </ItemDescription>
+                  </ItemContent>
+                  <ItemActions className="flex-wrap gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRule(row)}
+                    >
+                      편집
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() =>
+                        void run(() => window.chagok.saveClassificationRule({ ...row, enabled: !row.enabled }))
+                      }
+                    >
+                      {row.enabled ? "중지" : "사용"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => void run(() => window.chagok.deleteClassificationRule(row.id))}
+                    >
+                      삭제
+                    </Button>
+                  </ItemActions>
+                </Item>
+              ))}
+            </ItemGroup>
+          )}
           <form
             className="grid gap-3 border-t pt-4"
             onSubmit={event => {
@@ -255,14 +261,16 @@ export function ClassificationTools({
               );
             }}
           >
-            <Label htmlFor="rule-name">규칙 이름</Label>
-            <Input
-              id="rule-name"
-              required
-              maxLength={100}
-              value={rule.name}
-              onChange={e => setRule({ ...rule, name: e.target.value })}
-            />
+            <Field>
+              <FieldLabel htmlFor="rule-name">규칙 이름</FieldLabel>
+              <Input
+                id="rule-name"
+                required
+                maxLength={100}
+                value={rule.name}
+                onChange={e => setRule({ ...rule, name: e.target.value })}
+              />
+            </Field>
             <div className="flex gap-2">
               <NativeSelect
                 aria-label="규칙 검색 대상"

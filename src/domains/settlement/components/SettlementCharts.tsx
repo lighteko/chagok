@@ -8,6 +8,7 @@ import {
   ChartLegendContent,
 } from "@/atomics/atoms/chart";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/atomics/atoms/card";
+import { Empty, EmptyDescription, EmptyHeader } from "@/atomics/atoms/empty";
 import { Button } from "@/atomics/atoms/button";
 import type { SettlementReport } from "@/shared/desktop/ledger";
 import { shiftMonth } from "@/shared/utils/month";
@@ -128,7 +129,11 @@ export function SettlementCharts({
               </BarChart>
             </ChartContainer>
           ) : (
-            <p className="py-20 text-center text-muted-foreground">분류한 수입·지출이 없습니다.</p>
+            <Empty className="py-20">
+              <EmptyHeader>
+                <EmptyDescription>분류한 수입·지출이 없습니다.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
         </CardContent>
       </Card>
@@ -168,7 +173,11 @@ export function SettlementCharts({
               </BarChart>
             </ChartContainer>
           ) : (
-            <p className="py-20 text-center text-muted-foreground">분류한 지출이 없습니다.</p>
+            <Empty className="py-20">
+              <EmptyHeader>
+                <EmptyDescription>분류한 지출이 없습니다.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
           <div className="mt-2 flex flex-wrap gap-1">
             {breakdown.map(row => (

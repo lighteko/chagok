@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Alert, AlertDescription } from "@/atomics/atoms/alert";
 import { Button } from "@/atomics/atoms/button";
 import { Checkbox } from "@/atomics/atoms/checkbox";
@@ -11,7 +12,8 @@ import {
   DialogTitle,
 } from "@/atomics/atoms/dialog";
 import { Input } from "@/atomics/atoms/input";
-import { Label } from "@/atomics/atoms/label";
+import { Field, FieldContent, FieldDescription, FieldLabel } from "@/atomics/atoms/field";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/atomics/atoms/collapsible";
 import { errorText } from "@/domains/settlement/hooks/useLedger";
 import type { McpStatus } from "@/shared/desktop/contracts";
 
@@ -112,24 +114,21 @@ export function McpDialog({ onClose }: { onClose: () => void }) {
         {status?.url ? (
           <p className="text-sm font-medium">{status.canClassify ? "거래 분류 및 규칙 관리 허용됨" : "읽기 전용"}</p>
         ) : (
-          <div className="grid gap-2">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="mcp-allow-classification"
-                aria-describedby="mcp-classification-help"
-                checked={allowClassification}
-                disabled={busy || !status}
-                onCheckedChange={setAllowClassification}
-              />
-              <Label htmlFor="mcp-allow-classification">거래 분류 및 규칙 관리 허용</Label>
-            </div>
-            <p
-              id="mcp-classification-help"
-              className="text-sm text-muted-foreground"
-            >
-              연결된 클라이언트가 분류를 저장·확정하고 반복 거래 규칙을 관리할 수 있습니다.
-            </p>
-          </div>
+          <Field orientation="horizontal">
+            <Checkbox
+              id="mcp-allow-classification"
+              aria-describedby="mcp-classification-help"
+              checked={allowClassification}
+              disabled={busy || !status}
+              onCheckedChange={setAllowClassification}
+            />
+            <FieldContent>
+              <FieldLabel htmlFor="mcp-allow-classification">거래 분류 및 규칙 관리 허용</FieldLabel>
+              <FieldDescription id="mcp-classification-help">
+                연결된 클라이언트가 분류를 저장·확정하고 반복 거래 규칙을 관리할 수 있습니다.
+              </FieldDescription>
+            </FieldContent>
+          </Field>
         )}
         {!status?.claudeDesktopPrepared && (
           <p className="text-sm text-muted-foreground">처음 한 번 Claude Desktop에서 차곡 확장 설치를 승인하세요.</p>
@@ -162,52 +161,68 @@ export function McpDialog({ onClose }: { onClose: () => void }) {
             {claudeHint}
           </p>
         )}
-        <details>
-          <summary className="cursor-pointer text-sm text-muted-foreground">다른 클라이언트 설정</summary>
-          {status?.url ? (
-            <div className="mt-2 grid gap-3">
-              <div className="grid gap-2">
-                <Label htmlFor="mcp-url">서버 주소</Label>
-                <Input
-                  id="mcp-url"
-                  readOnly
-                  value={status.url}
-                  onFocus={event => event.currentTarget.select()}
-                />
+        <Collapsible>
+          <CollapsibleTrigger
+            render={
+              <Button
+                variant="ghost"
+                className="group px-1 text-muted-foreground"
+              />
+            }
+          >
+            <ChevronDown
+              aria-hidden="true"
+              className="-rotate-90 transition-transform group-aria-expanded:rotate-0"
+            />
+            다른 클라이언트 설정
+          </CollapsibleTrigger>
+          <CollapsibleContent hiddenUntilFound>
+            {status?.url ? (
+              <div className="mt-2 grid gap-3">
+                <Field>
+                  <FieldLabel htmlFor="mcp-url">서버 주소</FieldLabel>
+                  <Input
+                    id="mcp-url"
+                    aria-describedby="mcp-url-help"
+                    readOnly
+                    value={status.url}
+                    onFocus={event => event.currentTarget.select()}
+                  />
+                  <FieldDescription id="mcp-url-help">
+                    Streamable HTTP 방식으로 이 주소와 Bearer 토큰을 등록하세요.
+                  </FieldDescription>
+                </Field>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => void copyToken()}
+                  >
+                    토큰 복사
+                  </Button>
+                  <span
+                    role="status"
+                    className="text-sm text-muted-foreground"
+                  >
+                    {copied ? "토큰을 복사했습니다." : ""}
+                  </span>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Streamable HTTP 방식으로 이 주소와 Bearer 토큰을 등록하세요.
-              </p>
-              <div className="flex items-center gap-3">
+            ) : (
+              <div className="mt-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={busy}
-                  onClick={() => void copyToken()}
+                  disabled={busy || (!status && !error)}
+                  onClick={() => void toggle()}
                 >
-                  토큰 복사
+                  다른 클라이언트 연결 켜기
                 </Button>
-                <span
-                  role="status"
-                  className="text-sm text-muted-foreground"
-                >
-                  {copied ? "토큰을 복사했습니다." : ""}
-                </span>
               </div>
-            </div>
-          ) : (
-            <div className="mt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={busy || (!status && !error)}
-                onClick={() => void toggle()}
-              >
-                다른 클라이언트 연결 켜기
-              </Button>
-            </div>
-          )}
-        </details>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
         <DialogFooter>
           {status?.url && (
             <Button

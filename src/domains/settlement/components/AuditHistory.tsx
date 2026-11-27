@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "@/atomics/atoms/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/atomics/atoms/card";
 import { Alert, AlertDescription } from "@/atomics/atoms/alert";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/atomics/atoms/collapsible";
+import { Pagination, PaginationContent, PaginationItem } from "@/atomics/atoms/pagination";
 import type { AuditEvent } from "@/shared/desktop/ledger";
 import { errorText } from "../hooks/useLedger";
 
@@ -57,51 +60,73 @@ export function AuditHistory({ month }: { month: string }) {
           </p>
         )}
         {data?.rows.map(event => (
-          <details
+          <Collapsible
             key={event.id}
-            className="rounded-md border p-3"
+            className="rounded-md border"
           >
-            <summary className="cursor-pointer text-sm">
+            <CollapsibleTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  className="group h-auto w-full justify-start px-3 py-2.5 text-left font-normal whitespace-normal"
+                />
+              }
+            >
+              <ChevronDown
+                aria-hidden="true"
+                className="-rotate-90 transition-transform group-aria-expanded:rotate-0"
+              />
               {new Date(event.at).toLocaleString()} · {event.action}
-            </summary>
-            <div className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
-              <div>
-                <p className="font-medium">변경 전</p>
-                <pre className="mt-1 overflow-auto whitespace-pre-wrap break-all">
-                  {JSON.stringify(event.before, null, 2)}
-                </pre>
+            </CollapsibleTrigger>
+            <CollapsibleContent hiddenUntilFound>
+              <div className="grid gap-3 px-3 pb-3 text-xs sm:grid-cols-2">
+                <div>
+                  <p className="font-medium">변경 전</p>
+                  <pre className="mt-1 overflow-auto whitespace-pre-wrap break-all">
+                    {JSON.stringify(event.before, null, 2)}
+                  </pre>
+                </div>
+                <div>
+                  <p className="font-medium">변경 후</p>
+                  <pre className="mt-1 overflow-auto whitespace-pre-wrap break-all">
+                    {JSON.stringify(event.after, null, 2)}
+                  </pre>
+                </div>
               </div>
-              <div>
-                <p className="font-medium">변경 후</p>
-                <pre className="mt-1 overflow-auto whitespace-pre-wrap break-all">
-                  {JSON.stringify(event.after, null, 2)}
-                </pre>
-              </div>
-            </div>
-          </details>
+            </CollapsibleContent>
+          </Collapsible>
         ))}
         {data && (
-          <div className="mt-3 flex items-center justify-end gap-3">
-            <span className="text-sm">
-              전체 {data.total}건 · {page + 1} / {Math.max(1, Math.ceil(data.total / 50))}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!page}
-              onClick={() => setPage(value => value - 1)}
-            >
-              최근 이력
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={(page + 1) * 50 >= data.total}
-              onClick={() => setPage(value => value + 1)}
-            >
-              이전 이력
-            </Button>
-          </div>
+          <Pagination
+            aria-label="수정 이력 페이지"
+            className="mt-3 justify-end"
+          >
+            <PaginationContent className="flex-wrap gap-3">
+              <PaginationItem className="text-sm">
+                전체 {data.total}건 · {page + 1} / {Math.max(1, Math.ceil(data.total / 50))}
+              </PaginationItem>
+              <PaginationItem>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!page}
+                  onClick={() => setPage(value => value - 1)}
+                >
+                  최근 이력
+                </Button>
+              </PaginationItem>
+              <PaginationItem>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={(page + 1) * 50 >= data.total}
+                  onClick={() => setPage(value => value + 1)}
+                >
+                  이전 이력
+                </Button>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         )}
       </CardContent>
     </Card>

@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/atomics/
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/atomics/atoms/empty";
 import { Input } from "@/atomics/atoms/input";
 import { NativeSelect, NativeSelectOption } from "@/atomics/atoms/native-select";
+import { Pagination, PaginationContent, PaginationItem } from "@/atomics/atoms/pagination";
 import { Table, TableHeader, TableHead, TableRow, TableBody, TableCell } from "@/atomics/atoms/table";
 import type { TransactionFilter, TransactionList, TransactionQuery } from "@/shared/desktop/transactions";
 import { formatMoney } from "@/shared/utils/money";
@@ -163,29 +164,38 @@ export function TransactionTable({
         <span className="text-xs text-muted-foreground">
           거래 출처 {data.summary.importCount}개 · 통장 거래 {data.summary.count.toLocaleString()}건
         </span>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">
-            {query.page + 1} / {Math.max(1, Math.ceil(data.total / data.pageSize))}
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="이전 페이지"
-            disabled={loading || query.page === 0}
-            onClick={() => onPage(query.page - 1)}
-          >
-            <ChevronLeft />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="다음 페이지"
-            disabled={loading || (query.page + 1) * data.pageSize >= data.total}
-            onClick={() => onPage(query.page + 1)}
-          >
-            <ChevronRight />
-          </Button>
-        </div>
+        <Pagination
+          aria-label="거래내역 페이지"
+          className="mx-0 w-auto"
+        >
+          <PaginationContent className="gap-2">
+            <PaginationItem className="text-xs text-muted-foreground">
+              {query.page + 1} / {Math.max(1, Math.ceil(data.total / data.pageSize))}
+            </PaginationItem>
+            <PaginationItem>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="이전 페이지"
+                disabled={loading || query.page === 0}
+                onClick={() => onPage(query.page - 1)}
+              >
+                <ChevronLeft />
+              </Button>
+            </PaginationItem>
+            <PaginationItem>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="다음 페이지"
+                disabled={loading || (query.page + 1) * data.pageSize >= data.total}
+                onClick={() => onPage(query.page + 1)}
+              >
+                <ChevronRight />
+              </Button>
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
       </CardFooter>
     </Card>
   );

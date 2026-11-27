@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/atomics/atoms/button";
+import { Empty, EmptyDescription, EmptyHeader } from "@/atomics/atoms/empty";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/atomics/atoms/item";
 import { Alert, AlertDescription } from "@/atomics/atoms/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/atomics/atoms/dialog";
 import type { Expense, ReceiptInfo } from "@/shared/desktop/ledger";
@@ -77,38 +79,47 @@ export function ReceiptDialog({
             </AlertDescription>
           </Alert>
         )}
-        <div className="grid gap-3">
-          {rows.map(row => (
-            <div
-              key={row.id}
-              className="flex items-center justify-between gap-2 rounded-md border p-3"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm">{row.fileName}</p>
-                <p className="text-xs text-muted-foreground">{Math.ceil(row.size / 1024).toLocaleString()}KB</p>
-              </div>
-              <div className="flex shrink-0 gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => void run(() => window.chagok.openReceipt(row.id))}
-                >
-                  열기
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={busy || closed}
-                  onClick={() => void run(() => window.chagok.deleteReceipt(row.id))}
-                >
-                  제거
-                </Button>
-              </div>
-            </div>
-          ))}
-          {!rows.length && <p className="py-6 text-center text-sm text-muted-foreground">첨부된 영수증이 없습니다.</p>}
-        </div>
+        {rows.length ? (
+          <ItemGroup className="gap-3">
+            {rows.map(row => (
+              <Item
+                role="listitem"
+                variant="outline"
+                key={row.id}
+                className="flex-nowrap"
+              >
+                <ItemContent className="min-w-0 gap-0">
+                  <ItemTitle className="block max-w-full truncate font-normal">{row.fileName}</ItemTitle>
+                  <ItemDescription className="text-xs">{Math.ceil(row.size / 1024).toLocaleString()}KB</ItemDescription>
+                </ItemContent>
+                <ItemActions className="shrink-0 gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => void run(() => window.chagok.openReceipt(row.id))}
+                  >
+                    열기
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy || closed}
+                    onClick={() => void run(() => window.chagok.deleteReceipt(row.id))}
+                  >
+                    제거
+                  </Button>
+                </ItemActions>
+              </Item>
+            ))}
+          </ItemGroup>
+        ) : (
+          <Empty>
+            <EmptyHeader>
+              <EmptyDescription>첨부된 영수증이 없습니다.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )}
         <Button
           disabled={busy || closed}
           onClick={() => void run(() => window.chagok.addReceipt(expense.id))}

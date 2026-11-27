@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/atomics/atoms/button";
 import { Input } from "@/atomics/atoms/input";
-import { Label } from "@/atomics/atoms/label";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/atomics/atoms/field";
+import { CardDescription, CardHeader, CardTitle } from "@/atomics/atoms/card";
 import { Checkbox } from "@/atomics/atoms/checkbox";
 import { Textarea } from "@/atomics/atoms/textarea";
 import { NativeSelect, NativeSelectOption } from "@/atomics/atoms/native-select";
@@ -61,19 +62,25 @@ export function ClassificationEditor({
         void save();
       }}
     >
-      <div>
-        <h3 className="font-semibold">정산 분류·보정</h3>
-        <p className="text-sm text-muted-foreground">보정 값은 정산에 사용하며 아래의 엑셀 원본은 보존합니다.</p>
-      </div>
+      <CardHeader className="gap-0 px-0">
+        <CardTitle
+          role="heading"
+          aria-level={3}
+          className="text-sm font-semibold"
+        >
+          정산 분류·보정
+        </CardTitle>
+        <CardDescription>보정 값은 정산에 사용하며 아래의 엑셀 원본은 보존합니다.</CardDescription>
+      </CardHeader>
       {form.ruleId && (
-        <p className="text-sm text-muted-foreground">
+        <FieldDescription>
           {form.note}
           {!form.confirmed && " · 제안을 검토한 뒤 확정해 주세요."}
-        </p>
+        </FieldDescription>
       )}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="class-direction">분류</Label>
+      <FieldGroup className="grid grid-cols-2 gap-4">
+        <Field>
+          <FieldLabel htmlFor="class-direction">분류</FieldLabel>
           <NativeSelect
             id="class-direction"
             value={form.direction}
@@ -93,9 +100,9 @@ export function ClassificationEditor({
               </NativeSelectOption>
             ))}
           </NativeSelect>
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="class-month">정산월</Label>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="class-month">정산월</FieldLabel>
           <Input
             id="class-month"
             type="month"
@@ -103,11 +110,11 @@ export function ClassificationEditor({
             value={form.settlementMonth}
             onChange={e => field("settlementMonth", e.target.value)}
           />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="class-category">정산 항목</Label>
+        </Field>
+      </FieldGroup>
+      <FieldGroup className="grid grid-cols-2 gap-4">
+        <Field>
+          <FieldLabel htmlFor="class-category">정산 항목</FieldLabel>
           <NativeSelect
             id="class-category"
             value={form.categoryId ?? ""}
@@ -123,9 +130,9 @@ export function ClassificationEditor({
               </NativeSelectOption>
             ))}
           </NativeSelect>
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="class-group">지출 구분</Label>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="class-group">지출 구분</FieldLabel>
           <NativeSelect
             id="class-group"
             value={form.group}
@@ -135,15 +142,15 @@ export function ClassificationEditor({
             <NativeSelectOption value="card">카드</NativeSelectOption>
             <NativeSelectOption value="other">기타</NativeSelectOption>
           </NativeSelect>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
+        </Field>
+      </FieldGroup>
+      <FieldGroup className="grid grid-cols-2 gap-4">
         {(["withdrawal", "deposit"] as const).map(key => (
-          <div
+          <Field
             className="grid gap-2"
             key={key}
           >
-            <Label htmlFor={`class-${key}`}>{key === "withdrawal" ? "출금" : "입금"} 보정 (원)</Label>
+            <FieldLabel htmlFor={`class-${key}`}>{key === "withdrawal" ? "출금" : "입금"} 보정 (원)</FieldLabel>
             <Input
               id={`class-${key}`}
               type="number"
@@ -153,35 +160,35 @@ export function ClassificationEditor({
               placeholder="미확인"
               onChange={e => field(key, e.target.value === "" ? null : Number(e.target.value))}
             />
-          </div>
+          </Field>
         ))}
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="class-description">정산 내용</Label>
+      </FieldGroup>
+      <Field>
+        <FieldLabel htmlFor="class-description">정산 내용</FieldLabel>
         <Input
           id="class-description"
           maxLength={500}
           value={form.description}
           onChange={e => field("description", e.target.value)}
         />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="class-note">검토·보정·제외 사유</Label>
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="class-note">검토·보정·제외 사유</FieldLabel>
         <Textarea
           id="class-note"
           maxLength={2000}
           value={form.note}
           onChange={e => field("note", e.target.value)}
         />
-      </div>
-      <div className="flex items-center gap-2">
+      </Field>
+      <Field orientation="horizontal">
         <Checkbox
           id="class-confirmed"
           checked={form.confirmed}
           onCheckedChange={checked => field("confirmed", Boolean(checked))}
         />
-        <Label htmlFor="class-confirmed">금액과 분류를 확인했습니다</Label>
-      </div>
+        <FieldLabel htmlFor="class-confirmed">금액과 분류를 확인했습니다</FieldLabel>
+      </Field>
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>

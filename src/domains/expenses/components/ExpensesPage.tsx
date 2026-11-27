@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/atomics/atoms/button";
 import { Input } from "@/atomics/atoms/input";
-import { Label } from "@/atomics/atoms/label";
+import { Field, FieldGroup, FieldLabel } from "@/atomics/atoms/field";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemTitle } from "@/atomics/atoms/item";
 import { NativeSelect, NativeSelectOption } from "@/atomics/atoms/native-select";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/atomics/atoms/table";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/atomics/atoms/card";
 import { Alert, AlertDescription } from "@/atomics/atoms/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/atomics/atoms/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/atomics/atoms/dialog";
 import type { Expense, LedgerWorkspace } from "@/shared/desktop/ledger";
 import { ExpenseEditor } from "./ExpenseEditor";
 import { errorText } from "@/domains/settlement/hooks/useLedger";
@@ -210,7 +218,7 @@ export function ExpensesPage({
                 이력은 보관합니다.
               </DialogDescription>
             </DialogHeader>
-            <div className="flex justify-end gap-2">
+            <DialogFooter>
               <Button
                 variant="outline"
                 disabled={busy}
@@ -225,7 +233,7 @@ export function ExpensesPage({
               >
                 지출 삭제
               </Button>
-            </div>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
@@ -247,6 +255,7 @@ function PaymentLinkDialog({
   const candidates = ledger.classifications.filter(
     row => row.direction === "expense" && row.withdrawal !== null && row.deposit === 0,
   );
+  const links = ledger.links.filter(row => row.expenseId === expense.id);
   const [transactionId, setTransactionId] = useState(candidates[0]?.transactionId ?? ""),
     [amount, setAmount] = useState(expense.amount);
   const [busy, setBusy] = useState(false),
@@ -279,54 +288,65 @@ function PaymentLinkDialog({
             사용월과 출금월이 달라도 사용액은 지출의 정산월에 반영됩니다.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4">
-          <Label htmlFor="link-transaction">지출로 분류한 통장 출금</Label>
-          <NativeSelect
-            id="link-transaction"
-            value={transactionId}
-            onChange={e => setTransactionId(e.target.value)}
-          >
-            <NativeSelectOption value="">선택해 주세요</NativeSelectOption>
-            {candidates.map(row => (
-              <NativeSelectOption
-                key={row.transactionId}
-                value={row.transactionId}
-              >
-                {row.settlementMonth} · {row.description || row.transactionId.slice(0, 8)} ·{" "}
-                {formatMoney(row.withdrawal)}원
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
-          <Label htmlFor="link-amount">이번 지출에 연결할 금액 (원)</Label>
-          <Input
-            id="link-amount"
-            type="number"
-            min="1"
-            step="1"
-            value={amount || ""}
-            onChange={e => setAmount(Number(e.target.value))}
-          />
-          {ledger.links
-            .filter(row => row.expenseId === expense.id)
-            .map(row => (
-              <div
-                className="flex items-center justify-between gap-3 text-sm"
-                key={row.transactionId}
-              >
-                <span>
-                  {ledger.classifications.find(c => c.transactionId === row.transactionId)?.description} ·{" "}
-                  {formatMoney(row.amount)}원 연결
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => void save(row.transactionId, 0)}
+        <FieldGroup className="gap-4">
+          <Field>
+            <FieldLabel htmlFor="link-transaction">지출로 분류한 통장 출금</FieldLabel>
+            <NativeSelect
+              id="link-transaction"
+              value={transactionId}
+              onChange={e => setTransactionId(e.target.value)}
+            >
+              <NativeSelectOption value="">선택해 주세요</NativeSelectOption>
+              {candidates.map(row => (
+                <NativeSelectOption
+                  key={row.transactionId}
+                  value={row.transactionId}
                 >
-                  연결 해제
-                </Button>
-              </div>
-            ))}
+                  {row.settlementMonth} · {row.description || row.transactionId.slice(0, 8)} ·{" "}
+                  {formatMoney(row.withdrawal)}원
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="link-amount">이번 지출에 연결할 금액 (원)</FieldLabel>
+            <Input
+              id="link-amount"
+              type="number"
+              min="1"
+              step="1"
+              value={amount || ""}
+              onChange={e => setAmount(Number(e.target.value))}
+            />
+          </Field>
+          {links.length > 0 && (
+            <ItemGroup className="gap-2">
+              {links.map(row => (
+                <Item
+                  role="listitem"
+                  variant="outline"
+                  key={row.transactionId}
+                >
+                  <ItemContent>
+                    <ItemTitle className="line-clamp-none font-normal">
+                      {ledger.classifications.find(c => c.transactionId === row.transactionId)?.description} ·{" "}
+                      {formatMoney(row.amount)}원 연결
+                    </ItemTitle>
+                  </ItemContent>
+                  <ItemActions>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => void save(row.transactionId, 0)}
+                    >
+                      연결 해제
+                    </Button>
+                  </ItemActions>
+                </Item>
+              ))}
+            </ItemGroup>
+          )}
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -338,7 +358,7 @@ function PaymentLinkDialog({
           >
             연결 저장
           </Button>
-        </div>
+        </FieldGroup>
       </DialogContent>
     </Dialog>
   );

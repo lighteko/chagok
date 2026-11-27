@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/atomics/atoms/button";
 import { Input } from "@/atomics/atoms/input";
+import { Field, FieldLabel } from "@/atomics/atoms/field";
+import { Empty, EmptyDescription, EmptyHeader } from "@/atomics/atoms/empty";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/atomics/atoms/item";
+import { Pagination, PaginationContent, PaginationItem } from "@/atomics/atoms/pagination";
 import { Label } from "@/atomics/atoms/label";
 import { Checkbox } from "@/atomics/atoms/checkbox";
 import { Badge } from "@/atomics/atoms/badge";
@@ -295,36 +299,46 @@ export function SettlementPage({
             </CardHeader>
             <CardContent className="grid gap-3">
               {ledger.snapshots.length ? (
-                ledger.snapshots.map(row => (
-                  <div
-                    className="rounded-md border p-3"
-                    key={row.id}
-                  >
-                    <p className="font-medium">
-                      {new Date(row.closedAt).toLocaleString()} · 잔액 {formatMoney(row.report.net)}원
-                    </p>
-                    <p className="text-sm">
-                      {row.report.allocations.map(a => `${a.recipient} ${formatMoney(a.amount)}원`).join(" · ") ||
-                        "배분 설정 없음"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {row.reopenedAt
-                        ? `재개방 ${new Date(row.reopenedAt).toLocaleString()} · ${row.reopenReason}`
-                        : "현재 마감본"}
-                    </p>
-                    <Button
-                      className="mt-2"
+                <ItemGroup>
+                  {ledger.snapshots.map(row => (
+                    <Item
+                      role="listitem"
                       variant="outline"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => void exportReport(row.id)}
+                      key={row.id}
                     >
-                      이 마감본 엑셀 출력
-                    </Button>
-                  </div>
-                ))
+                      <ItemContent className="min-w-0">
+                        <ItemTitle className="line-clamp-none">
+                          {new Date(row.closedAt).toLocaleString()} · 잔액 {formatMoney(row.report.net)}원
+                        </ItemTitle>
+                        <p className="text-sm">
+                          {row.report.allocations.map(a => `${a.recipient} ${formatMoney(a.amount)}원`).join(" · ") ||
+                            "배분 설정 없음"}
+                        </p>
+                        <ItemDescription className="line-clamp-none text-xs">
+                          {row.reopenedAt
+                            ? `재개방 ${new Date(row.reopenedAt).toLocaleString()} · ${row.reopenReason}`
+                            : "현재 마감본"}
+                        </ItemDescription>
+                      </ItemContent>
+                      <ItemActions>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => void exportReport(row.id)}
+                        >
+                          이 마감본 엑셀 출력
+                        </Button>
+                      </ItemActions>
+                    </Item>
+                  ))}
+                </ItemGroup>
               ) : (
-                <p className="text-muted-foreground">아직 마감한 이력이 없습니다.</p>
+                <Empty className="items-start p-0 text-left">
+                  <EmptyHeader>
+                    <EmptyDescription>아직 마감한 이력이 없습니다.</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               )}
             </CardContent>
           </Card>
@@ -352,7 +366,10 @@ export function SettlementPage({
                   setPage(0);
                 }}
               />
-              <div className="flex items-center gap-2">
+              <Field
+                orientation="horizontal"
+                className="w-fit"
+              >
                 <Checkbox
                   id="pending-only"
                   checked={pendingOnly}
@@ -361,8 +378,8 @@ export function SettlementPage({
                     setPage(0);
                   }}
                 />
-                <Label htmlFor="pending-only">확인할 내역만</Label>
-              </div>
+                <FieldLabel htmlFor="pending-only">확인할 내역만</FieldLabel>
+              </Field>
               {Object.keys(filter).length > 0 && (
                 <Button
                   size="sm"
@@ -482,27 +499,36 @@ export function SettlementPage({
                 )}
               </TableBody>
             </Table>
-            <div className="flex items-center justify-end gap-3">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={page <= 0}
-                onClick={() => setPage(value => value - 1)}
-              >
-                이전
-              </Button>
-              <span className="text-sm">
-                {Math.min(page, totalPages - 1) + 1} / {totalPages}
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={page >= totalPages - 1}
-                onClick={() => setPage(value => value + 1)}
-              >
-                다음
-              </Button>
-            </div>
+            <Pagination
+              aria-label="정산 내역 페이지"
+              className="justify-end"
+            >
+              <PaginationContent className="gap-3">
+                <PaginationItem>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={page <= 0}
+                    onClick={() => setPage(value => value - 1)}
+                  >
+                    이전
+                  </Button>
+                </PaginationItem>
+                <PaginationItem className="text-sm">
+                  {Math.min(page, totalPages - 1) + 1} / {totalPages}
+                </PaginationItem>
+                <PaginationItem>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={page >= totalPages - 1}
+                    onClick={() => setPage(value => value + 1)}
+                  >
+                    다음
+                  </Button>
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </CardContent>
         </Card>
       )}
@@ -642,8 +668,8 @@ function AllocationDialog({
               key={row.id}
               className="flex items-end gap-2"
             >
-              <div className="grid flex-1 gap-2">
-                <Label htmlFor={`recipient-${index}`}>대상 {index + 1}</Label>
+              <Field className="flex-1">
+                <FieldLabel htmlFor={`recipient-${index}`}>대상 {index + 1}</FieldLabel>
                 <Input
                   id={`recipient-${index}`}
                   required
@@ -659,9 +685,9 @@ function AllocationDialog({
                     })
                   }
                 />
-              </div>
-              <div className="grid w-24 gap-2">
-                <Label htmlFor={`ratio-${index}`}>비율 (%)</Label>
+              </Field>
+              <Field className="w-24">
+                <FieldLabel htmlFor={`ratio-${index}`}>비율 (%)</FieldLabel>
                 <Input
                   id={`ratio-${index}`}
                   type="number"
@@ -680,7 +706,7 @@ function AllocationDialog({
                     })
                   }
                 />
-              </div>
+              </Field>
               <Button
                 type="button"
                 variant="ghost"
@@ -707,16 +733,18 @@ function AllocationDialog({
             배분 대상 추가
           </Button>
           <p className="text-sm">합계 {settings.allocations.reduce((sum, row) => sum + row.basisPoints, 0) / 100}%</p>
-          <Label htmlFor="rounding">원 미만 처리</Label>
-          <NativeSelect
-            id="rounding"
-            disabled={ledger.closed}
-            value={settings.rounding}
-            onChange={e => setSettings({ ...settings, rounding: e.target.value as SettlementSettings["rounding"] })}
-          >
-            <NativeSelectOption value="largest-remainder">소수 잔여가 큰 대상부터 1원 배분</NativeSelectOption>
-            <NativeSelectOption value="last-recipient">마지막 대상에게 잔여 원 배분</NativeSelectOption>
-          </NativeSelect>
+          <Field>
+            <FieldLabel htmlFor="rounding">원 미만 처리</FieldLabel>
+            <NativeSelect
+              id="rounding"
+              disabled={ledger.closed}
+              value={settings.rounding}
+              onChange={e => setSettings({ ...settings, rounding: e.target.value as SettlementSettings["rounding"] })}
+            >
+              <NativeSelectOption value="largest-remainder">소수 잔여가 큰 대상부터 1원 배분</NativeSelectOption>
+              <NativeSelectOption value="last-recipient">마지막 대상에게 잔여 원 배분</NativeSelectOption>
+            </NativeSelect>
+          </Field>
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>

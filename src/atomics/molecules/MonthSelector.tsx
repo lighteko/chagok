@@ -1,13 +1,14 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/atomics/atoms/button";
+import { ButtonGroup } from "@/atomics/atoms/button-group";
 import { Input } from "@/atomics/atoms/input";
 import { MAX_MONTH, MIN_MONTH, isValidMonth, shiftMonth } from "@/shared/utils/month";
 
 export function MonthSelector({ value, onValueChange }: { value: string; onValueChange: (month: string) => void }) {
   return (
-    <div className="flex items-center gap-1">
+    <ButtonGroup aria-label="정산월 선택">
       <Button
-        variant="ghost"
+        variant="outline"
         size="icon"
         aria-label="이전 달"
         disabled={value <= MIN_MONTH}
@@ -27,7 +28,7 @@ export function MonthSelector({ value, onValueChange }: { value: string; onValue
         }}
       />
       <Button
-        variant="ghost"
+        variant="outline"
         size="icon"
         aria-label="다음 달"
         disabled={value >= MAX_MONTH}
@@ -35,6 +36,6 @@ export function MonthSelector({ value, onValueChange }: { value: string; onValue
       >
         <ChevronRight />
       </Button>
-    </div>
+    </ButtonGroup>
   );
 }

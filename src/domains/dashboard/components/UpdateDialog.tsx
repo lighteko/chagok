@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/atomics/atoms/dialog";
+import { Progress } from "@/atomics/atoms/progress";
 import type { AppUpdateStatus } from "@/shared/desktop/contracts";
 import { errorText } from "@/domains/settlement/hooks/useLedger";
 
@@ -59,11 +60,10 @@ export function UpdateDialog({
               <p>
                 {status.version} 내려받는 중 · {status.percent}%
               </p>
-              <progress
+              <Progress
                 aria-label="업데이트 다운로드 진행률"
-                className="h-2 w-full accent-primary"
+                className="w-full [&_[data-slot=progress-track]]:h-2"
                 value={status.percent}
-                max={100}
               />
             </>
           )}

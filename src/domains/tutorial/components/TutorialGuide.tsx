@@ -3,6 +3,7 @@ import { ArrowRight, ChevronDown, ChevronLeft, ChevronUp, List, X } from "lucide
 import { Badge } from "@/atomics/atoms/badge";
 import { Button } from "@/atomics/atoms/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/atomics/atoms/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/atomics/atoms/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/atomics/atoms/dialog";
 import { tutorialSteps, tutorialStatus, type TutorialContext } from "../content/steps";
 import "../styles/tutorial.css";
@@ -44,12 +45,14 @@ export function TutorialGuide({
   }
   return (
     <>
-      <Card
+      <Collapsible
+        open={expanded}
+        onOpenChange={setExpanded}
+        render={<Card size="sm" />}
         id="chagok-tutorial"
         role="region"
         aria-label="차곡 사용 안내"
         className="gap-0 border border-primary/20 shadow-none"
-        size="sm"
       >
         <CardHeader className="flex flex-wrap items-center justify-between gap-2 py-3">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -108,15 +111,17 @@ export function TutorialGuide({
             >
               <List />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-expanded={expanded}
+            <CollapsibleTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                />
+              }
               aria-label={expanded ? "안내 접기" : "안내 펼치기"}
-              onClick={() => setExpanded(value => !value)}
             >
               {expanded ? <ChevronUp /> : <ChevronDown />}
-            </Button>
+            </CollapsibleTrigger>
             <Button
               variant="ghost"
               size="icon-sm"
@@ -128,73 +133,71 @@ export function TutorialGuide({
             </Button>
           </div>
         </CardHeader>
-        {expanded && (
-          <>
-            <CardContent className="grid gap-3 pb-3">
-              <CardDescription>{step.description}</CardDescription>
-              <ol className="grid list-decimal gap-1.5 pl-5 text-sm leading-relaxed">
-                {step.instructions.map(instruction => (
-                  <li
-                    key={instruction}
-                    className="pl-1"
-                  >
-                    {instruction}
-                  </li>
-                ))}
-              </ol>
-              <p
-                role="status"
-                className="text-xs font-medium text-primary"
+        <CollapsibleContent>
+          <CardContent className="grid gap-3 pb-3">
+            <CardDescription>{step.description}</CardDescription>
+            <ol className="grid list-decimal gap-1.5 pl-5 text-sm leading-relaxed">
+              {step.instructions.map(instruction => (
+                <li
+                  key={instruction}
+                  className="pl-1"
+                >
+                  {instruction}
+                </li>
+              ))}
+            </ol>
+            <p
+              role="status"
+              className="text-xs font-medium text-primary"
+            >
+              {tutorialStatus(step.id, context)}
+            </p>
+            {actionDisabled && actionHint && <p className="text-xs text-muted-foreground">{actionHint}</p>}
+          </CardContent>
+          <CardFooter className="flex flex-wrap items-center justify-between gap-2 py-3">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                disabled={disabled || actionDisabled}
+                onClick={() => act(onAction)}
               >
-                {tutorialStatus(step.id, context)}
-              </p>
-              {actionDisabled && actionHint && <p className="text-xs text-muted-foreground">{actionHint}</p>}
-            </CardContent>
-            <CardFooter className="flex flex-wrap items-center justify-between gap-2 py-3">
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  disabled={disabled || actionDisabled}
-                  onClick={() => act(onAction)}
-                >
-                  {step.action}
-                  <ArrowRight />
-                </Button>
-                {onReceipt && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={disabled}
-                    onClick={() => act(onReceipt)}
-                  >
-                    영수증 첨부 위치 열기
-                  </Button>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={disabled || index === 0}
-                  onClick={() => onSelect(index - 1)}
-                >
-                  <ChevronLeft />
-                  이전
-                </Button>
+                {step.action}
+                <ArrowRight />
+              </Button>
+              {onReceipt && (
                 <Button
                   size="sm"
                   variant="outline"
                   disabled={disabled}
-                  onClick={() => (index === tutorialSteps.length - 1 ? onFinish() : onSelect(index + 1))}
+                  onClick={() => act(onReceipt)}
                 >
-                  {index === tutorialSteps.length - 1 ? "안내 마치기" : "다음 단계"}
-                  <ArrowRight />
+                  영수증 첨부 위치 열기
                 </Button>
-              </div>
-            </CardFooter>
-          </>
-        )}
-      </Card>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={disabled || index === 0}
+                onClick={() => onSelect(index - 1)}
+              >
+                <ChevronLeft />
+                이전
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={disabled}
+                onClick={() => (index === tutorialSteps.length - 1 ? onFinish() : onSelect(index + 1))}
+              >
+                {index === tutorialSteps.length - 1 ? "안내 마치기" : "다음 단계"}
+                <ArrowRight />
+              </Button>
+            </div>
+          </CardFooter>
+        </CollapsibleContent>
+      </Collapsible>
       <Dialog
         open={contentsOpen}
         onOpenChange={setContentsOpen}
